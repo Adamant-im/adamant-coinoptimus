@@ -1,0 +1,100 @@
+{
+  /**
+    The bot's secret passphrase. Create separate ADM account for the bot.
+    Bot's ADM address will correspond this passphrase.
+    You'll contact this address via ADAMANT Messenger to manage the bot.
+  **/
+  "passPhrase": "distance expect praise frequent..",
+
+  /**
+    List of nodes to connect to ADAMANT blockchain.
+    It ensures secure communication with the bot.
+    If one become unavailable, bot will choose live one.
+  **/
+  "node_ADM": [
+    "https://bid.adamant.im",
+    "http://localhost:36666",
+    "https://endless.adamant.im",
+    "https://clown.adamant.im",
+    "https://unusual.adamant.im",
+    "https://debate.adamant.im",
+    "http://23.226.231.225:36666",
+    "http://78.47.205.206:36666",
+    "https://lake.adamant.im",
+    "https://sunshine.adamant.im"
+  ],
+
+  /** Socket connection is recommended for better communication experience **/
+  "socket": true,
+
+  /** Choose socket connection protocol, "ws" or "wss" depending on your server **/
+  "ws_type": "ws",
+
+  /** List of ADAMANT InfoServices for catching exchange rates **/
+  "infoservice": [
+    "https://info.adamant.im"
+  ],
+
+  /** ADAMANT accounts to accept commands from. Commands from other accounts will not be executed. **/
+  "admin_accounts": [
+    "U123.."
+  ],
+
+  /** Notify non-admins that they are not admins. If false, bot will be silent. **/
+  "notify_non_admins": false,
+
+  /** List of supported exchanges **/
+  "exchanges": [
+    "P2PB2B",
+    "Azbit"
+  ],
+
+  /** Exchange to work with. Case insensitive. **/
+  "exchange": "Azbit",
+
+  /** Pair to trade in regular Base/Quote format **/
+  "pair": "ADM/USDT",
+
+  /** Exchange's account API key for connection **/
+  "apikey": "YOUR-KEY..",
+
+  /** Exchange's account API secret for connection **/
+  "apisecret": "YOUR-SECRET..",
+
+  /** Exchange's account trade password (if required by exchange) **/
+  "apipassword": "YOUR-TRADE-PASS",
+
+  /** How to reply to admin in-chat, if first unknown command received **/
+  "welcome_string": "Hi! 😊 I'm a CoinOptimus trade bot. ℹ️ Learn more on https://github.com/Adamant-im/adamant-coinoptimus or type **/help**.",
+
+  /** Bot's name for notifications **/
+  "bot_name": "Lovely CoinOptimus Bot",
+
+  /** ADAMANT addresses for notifications and monitoring. Optional. **/
+  "adamant_notify": [""],
+
+  /** ADAMANT addresses for priority notifications. Optional. **/
+  "adamant_notify_priority": [],
+
+  /** Slack keys for notifications and monitoring. Optional. **/
+  "slack": ["https://hooks.slack.com/services/.."],
+
+  /** Slack keys for priority notifications. Optional. **/
+  "slack_priority": [],
+
+  /**
+    The software will use verbosity according to log_level.
+    It can be none < error < warn < info < log.
+  **/
+  "log_level": "log",
+
+  /**
+    Port for getting debug info.
+    Do not set for live bots, use only for debugging.
+    Allows to get DBs records like http://ip:port/db?tb=incomingTxsDb
+  **/
+  "debug_api": false,
+
+  /** Minimal amount of USDT to confirm buy/sell/fill commands **/
+  "amount_to_confirm_usd": 100
+}
