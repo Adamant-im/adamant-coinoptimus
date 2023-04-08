@@ -1,6 +1,5 @@
 const BinanceApi = require('./api/binance_api');
 const utils = require('../helpers/utils');
-const config = require('./../modules/configReader');
 
 /**
  * API endpoints:
@@ -46,20 +45,25 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
     return new Promise((resolve) => {
       binanceApiClient.markets().then((data) => {
         try {
-          const markets = data.symbols;
           const result = {};
 
+          const markets = data.symbols;
+
           markets.forEach((market) => {
-            const priceFilter = market.filters?.filter((filter) => filter.filterType?.toUpperCase() === 'PRICE_FILTER')?.[0];
-            const lotFilter = market.filters?.filter((filter) => filter.filterType?.toUpperCase() === 'LOT_SIZE')?.[0];
-            const notionalFilter = market.filters?.filter((filter) => filter.filterType?.toUpperCase() === 'MIN_NOTIONAL')?.[0];
-            const maxOrdersFilter = market.filters?.filter((filter) => filter.filterType?.toUpperCase() === 'MAX_NUM_ORDERS')?.[0];
+            const filterByType = (type) => (
+              market.filters?.filter((filter) => filter.filterType?.toUpperCase() === type)[0]
+            );
+
+            const priceFilter = filterByType('PRICE_FILTER');
+            const lotFilter = filterByType('LOT_SIZE');
+            const notionalFilter = filterByType('MIN_NOTIONAL');
+            const maxOrdersFilter = filterByType('MAX_NUM_ORDERS');
 
             const pairReadable = `${market.baseAsset}/${market.quoteAsset}`;
 
             result[pairReadable] = {
-              pairPlain: market.symbol, // LTCBTC
               pairReadable, // LTC/BTC
+              pairPlain: market.symbol, // LTCBTC
               coin1: market.baseAsset,
               coin2: market.quoteAsset,
               coin1Decimals: utils.getDecimalsFromPrecision(+lotFilter?.stepSize) ?? market.baseAssetPrecision,
@@ -117,11 +121,11 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
     marketInfo(pair) {
       if (pair?.includes('/')) {
         return getMarkets(pair);
-      } else {
-        for (const market of Object.values(module.exports.exchangeMarkets)) {
-          if (market.pairPlain?.toUpperCase() === pair?.toUpperCase()) {
-            return market;
-          }
+      }
+
+      for (const market of Object.values(module.exports.exchangeMarkets)) {
+        if (market.pairPlain?.toUpperCase() === pair?.toUpperCase()) {
+          return market;
         }
       }
     },
@@ -151,37 +155,31 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      * @param {Boolean} nonzero Return only non-zero balances. By default, Binance return zero assets as well.
      * @returns {Promise<unknown>}
      */
-    getBalances(nonzero = true) {
+    async getBalances(nonzero = true) {
       const paramString = `nonzero: ${nonzero}`;
 
-      return new Promise((resolve) => {
-        binanceApiClient.getBalances().then((data) => {
-          try {
-            let result = [];
+      try {
+        const data = await binanceApiClient.getBalances();
 
-            data.balances.forEach((crypto) => {
-              result.push({
-                code: crypto.asset,
-                free: +crypto.free,
-                freezed: +crypto.locked,
-                total: +crypto.free + +crypto.locked,
-              });
-            });
+        try {
+          let result = data.balances.map((crypto) => ({
+            code: crypto.asset,
+            free: +crypto.free,
+            freezed: +crypto.locked,
+            total: +crypto.free + +crypto.locked,
+          }));
 
-            if (nonzero) {
-              result = result.filter((crypto) => crypto.free || crypto.freezed);
-            }
-
-            resolve(result);
-          } catch (e) {
-            log.warn(`Error while processing getBalances(${paramString}) request: ${e}`);
-            resolve(undefined);
+          if (nonzero) {
+            result = result.filter((crypto) => crypto.free || crypto.freezed);
           }
-        }).catch((err) => {
-          log.warn(`API request getBalances(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
-          resolve(undefined);
-        });
-      });
+
+          return result;
+        } catch (error) {
+          log.warn(`Error while processing getBalances(${paramString}) request: ${error}`);
+        }
+      } catch (error) {
+        log.warn(`API request getBalances(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
+      }
     },
 
     /**
@@ -191,12 +189,12 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      */
     async getOpenOrders(pair) {
       const paramString = `pair: ${pair}`;
-      const pair_ = formatPairName(pair);
+      const coinPair = formatPairName(pair);
 
       let data;
 
       try {
-        data = await binanceApiClient.getOrders(pair_.pair);
+        data = await binanceApiClient.getOrders(coinPair.pair);
       } catch (err) {
         log.warn(`API request getOpenOrders(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
         return undefined;
@@ -251,12 +249,12 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      */
     async getOrderDetails(orderId, pair) {
       const paramString = `orderId: ${orderId}, pair: ${pair}`;
-      const pair_ = formatPairName(pair);
+      const coinPair = formatPairName(pair);
 
       let order;
 
       try {
-        order = await binanceApiClient.getOrder(orderId, pair_.pairPlain);
+        order = await binanceApiClient.getOrder(orderId, coinPair.pairPlain);
       } catch (err) {
         log.warn(`API request getOrderDetails(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
         return undefined;
@@ -286,8 +284,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             type: order.type.toLowerCase(), // 'limit' or 'market'
             amount: +order.origQty,
             volume: +order.origQty * +order.price,
-            pairPlain: pair_.pairPlain,
-            pairReadable: pair_.pairReadable,
+            pairPlain: coinPair.pairPlain,
+            pairReadable: coinPair.pairReadable,
             totalFeeInCoin2: undefined, // Binance doesn't provide fee info
             amountExecuted: +order.executedQty, // In coin1
             volumeExecuted: +order.cummulativeQuoteQty * +order.executedQty, // In coin2 // ?
@@ -321,16 +319,16 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      */
     cancelOrder(orderId, side, pair) {
       const paramString = `orderId: ${orderId}, side: ${side}, pair: ${pair}`;
-      const pair_ = formatPairName(pair);
+      const coinPair = formatPairName(pair);
 
       return new Promise((resolve, reject) => {
-        binanceApiClient.cancelOrder(orderId, pair_.pairPlain).then((data) => {
+        binanceApiClient.cancelOrder(orderId, coinPair.pairPlain).then((data) => {
           if (data.status === 'CANCELED' && !data.binanceErrorInfo) {
-            log.log(`Cancelling order ${orderId} on ${pair_.pairReadable} pair…`);
+            log.log(`Cancelling order ${orderId} on ${coinPair.pairReadable} pair…`);
             resolve(true);
           } else {
             const errorMessage = data?.binanceErrorInfo || 'No details';
-            log.log(`Unable to cancel ${orderId} on ${pair_.pairReadable}: ${errorMessage}.`);
+            log.log(`Unable to cancel ${orderId} on ${coinPair.pairReadable}: ${errorMessage}.`);
             resolve(false);
           }
         }).catch((err) => {
@@ -347,16 +345,16 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      */
     cancelAllOrders(pair) {
       const paramString = `pair: ${pair}`;
-      const pair_ = formatPairName(pair);
+      const coinPair = formatPairName(pair);
 
       return new Promise((resolve, reject) => {
-        binanceApiClient.cancelAllOrders(pair_.pairPlain).then(function(data) {
+        binanceApiClient.cancelAllOrders(coinPair.pairPlain).then((data) => {
           if (data && !data.binanceErrorInfo) {
-            log.log(`Cancelling all orders on ${pair_.pairReadable} pair…`);
+            log.log(`Cancelling all orders on ${coinPair.pairReadable} pair…`);
             resolve(true);
           } else {
             const errorMessage = data?.binanceErrorInfo || 'No details'; // In case of 0 open orders: [-2011] Unknown order sent
-            log.log(`Unable to cancel all orders on ${pair_.pairReadable}: ${errorMessage}.`);
+            log.log(`Unable to cancel all orders on ${coinPair.pairReadable}: ${errorMessage}.`);
             resolve(false);
           }
         }).catch((err) => {
@@ -373,10 +371,10 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      */
     getRates(pair) {
       const paramString = `pair: ${pair}`;
-      const pair_ = formatPairName(pair);
+      const coinPair = formatPairName(pair);
 
       return new Promise((resolve, reject) => {
-        binanceApiClient.ticker(pair_.pairPlain).then((data) => {
+        binanceApiClient.ticker(coinPair.pairPlain).then((data) => {
           try {
             const ticker = data;
 
@@ -524,10 +522,10 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      */
     getOrderBook(pair) {
       const paramString = `pair: ${pair}`;
-      const pair_ = formatPairName(pair);
+      const coinPair = formatPairName(pair);
 
       return new Promise((resolve) => {
-        binanceApiClient.orderBook(pair_.pairPlain).then((book) => {
+        binanceApiClient.orderBook(coinPair.pairPlain).then((book) => {
           try {
             const result = {
               bids: [],
@@ -542,7 +540,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
                 type: 'ask-sell-right',
               });
             });
-            result.asks.sort(function(a, b) {
+            result.asks.sort((a, b) => {
               return parseFloat(a.price) - parseFloat(b.price);
             });
 
@@ -554,7 +552,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
                 type: 'bid-buy-left',
               });
             });
-            result.bids.sort(function(a, b) {
+            result.bids.sort((a, b) => {
               return parseFloat(b.price) - parseFloat(a.price);
             });
 
@@ -579,26 +577,22 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
      */
     async getTradesHistory(pair, limit) {
       const paramString = `pair: ${pair}, limit: ${limit}`;
-      const pair_ = formatPairName(pair);
+      const coinPair = formatPairName(pair);
 
       return new Promise((resolve) => {
-        binanceApiClient.getTradesHistory(pair_.pairPlain, limit).then((trades) => {
+        binanceApiClient.getTradesHistory(coinPair.pairPlain, limit).then((trades) => {
           try {
-            const result = [];
-
-            trades.forEach((trade) => {
-              result.push({
-                coin1Amount: +trade.qty, // amount in coin1
-                price: +trade.price, // trade price
-                coin2Amount: +trade.quoteQty, // quote in coin2
-                date: trade.time, // must be as utils.unixTimeStampMs(): 1641121688194 - 1 641 121 688 194
-                type: trade.isBuyerMaker ? 'buy' : 'sell', // 'buy' or 'sell'
-                tradeId: trade.id?.toString(),
-              });
-            });
+            const result = trades.map((trade) => ({
+              coin1Amount: +trade.qty, // amount in coin1
+              price: +trade.price, // trade price
+              coin2Amount: +trade.quoteQty, // quote in coin2
+              date: trade.time, // must be as utils.unixTimeStampMs(): 1641121688194 - 1 641 121 688 194
+              type: trade.isBuyerMaker ? 'buy' : 'sell', // 'buy' or 'sell'
+              tradeId: trade.id?.toString(),
+            }));
 
             // We need ascending sort order
-            result.sort(function(a, b) {
+            result.sort((a, b) => {
               return parseFloat(a.date) - parseFloat(b.date);
             });
 
@@ -659,15 +653,15 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
     async getFees(coinOrPair) {
       const paramString = `coinOrPair: ${coinOrPair}`;
 
-      let pair_; let coin;
+      let coinPair; let coin;
       if (coinOrPair?.includes('/')) {
-        pair_ = formatPairName(coinOrPair);
+        coinPair = formatPairName(coinOrPair);
       } else {
         coin = coinOrPair?.toUpperCase();
       }
 
       return new Promise((resolve) => {
-        binanceApiClient.getFees(pair_?.pairPlain).then((data) => {
+        binanceApiClient.getFees(coinPair?.pairPlain).then((data) => {
           try {
             let result = [];
 
@@ -691,7 +685,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
           } catch (e) {
             log.warn(`Error while processing getFees(${paramString}) request: ${e}`);
             resolve(undefined);
-          };
+          }
         }).catch((err) => {
           log.log(`API request getFees(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}.`);
           resolve(undefined);
@@ -718,10 +712,10 @@ function formatPairName(pair) {
   const [coin1, coin2] = pair.split('_');
 
   return {
+    coin1,
+    coin2,
     pair: `${coin1}${coin2}`,
     pairReadable: `${coin1}/${coin2}`,
     pairPlain: `${coin1}${coin2}`,
-    coin1,
-    coin2,
   };
 }

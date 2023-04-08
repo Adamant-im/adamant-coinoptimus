@@ -1738,4 +1738,23 @@ module.exports = {
     date.setMonth(date.getMonth() - 1);
     return +(date.getTime() / 1000).toFixed(0) + 86400;
   },
+
+  /**
+   * Creates an url params string as: key1=value1&key2=value2
+   * @param {Object} data Request params
+   * @returns {String}
+   */
+  getParamsString(data) {
+    const params = [];
+
+    for (const key in data) {
+      const value = data[key];
+
+      if (value !== undefined) {
+        params.push(`${key}=${value}`);
+      }
+    }
+
+    return params.join('&');
+  },
 };

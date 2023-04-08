@@ -1,6 +1,10 @@
 const crypto = require('crypto');
 const axios = require('axios');
-const utils = require('../../helpers/utils');
+
+const {
+  trimAny,
+  getParamsString,
+} = require('../../helpers/utils');
 
 /**
  * Docs: https://binance-docs.github.io/apidocs/spot/en/#introduction
@@ -21,9 +25,9 @@ const utils = require('../../helpers/utils');
 module.exports = function() {
   let WEB_BASE = 'https://api.binance.com'; // Default, may be changed on init
   let config = {
-    'apiKey': '',
-    'secret_key': '',
-    'tradePwd': '',
+    apiKey: '',
+    secret_key: '',
+    tradePwd: '',
   };
   let log = {};
 
@@ -36,81 +40,55 @@ module.exports = function() {
    * @param {String} queryString
    * @param {String} url
    */
-  const handleResponse = (responseOrError, resolve, reject, bodyString, queryString, url) => {
-    const httpCode = responseOrError?.status || responseOrError?.response?.status;
-    const httpMessage = responseOrError?.statusText || responseOrError?.response?.statusText;
+  const handleResponse = (responseOrError, resolve, reject, queryString, url) => {
+    const httpCode = responseOrError?.status ?? responseOrError?.response?.status;
+    const httpMessage = responseOrError?.statusText ?? responseOrError?.response?.statusText;
 
-    const binanceData = responseOrError?.data || responseOrError?.response?.data;
+    const data = responseOrError?.data ?? responseOrError?.response?.data;
+    const success = httpCode === 200 && !data?.code; // Binance doesn't return any special status code on success
 
-    const binanceStatus = httpCode === 200 && !binanceData?.code ? true : false; // Binance doesn't return any special status on success
-    const binanceErrorCode = binanceData?.code || 'No error code';
-    const binanceErrorMessage = binanceData?.msg || 'No error message';
+    const error = {
+      code: data?.code || 'No error code',
+      message: data?.msg || 'No error message',
+    };
 
-    const binanceErrorInfo = `[${binanceErrorCode}] ${utils.trimAny(binanceErrorMessage, ' .')}`;
-
-    const errorMessage = httpCode ? `${httpCode} ${httpMessage}, ${binanceErrorInfo}` : String(responseOrError);
-    const reqParameters = queryString || bodyString || '{ No parameters }';
+    const reqParameters = queryString || '{ No parameters }';
 
     try {
-      if (binanceStatus) {
-        resolve(binanceData);
-      } else if (binanceErrorCode <= -1100 && binanceErrorCode >= -2013) {
-        binanceData.binanceErrorInfo = binanceErrorInfo;
-        log.log(`Binance processed a request to ${url} with data ${reqParameters}, but with error: ${errorMessage}. Resolving…`);
-        resolve(binanceData);
-      } else if (binanceData && httpCode >= 400 && httpCode <= 409) {
-        binanceData.binanceErrorInfo = binanceErrorInfo;
-        log.log(`Binance processed a request to ${url} with data ${reqParameters}, but with error: ${errorMessage}. Unexpected error code: ${binanceErrorCode}. Resolving…`);
-        resolve(binanceData);
-      } else if (httpCode === 429) {
-        log.warn(`Request to ${url} with data ${reqParameters} failed. Rate limit exceeded, details: ${errorMessage}. Rejecting…`);
-        reject(errorMessage);
-      } else if (httpCode === 418) {
-        log.warn(`Request to ${url} with data ${reqParameters} failed. IP has been blocked because of rate limit exceeded, details: ${errorMessage}. Rejecting…`);
-        reject(errorMessage);
-      } else if (httpCode >= 500) {
-        log.warn(`Request to ${url} with data ${reqParameters} failed. Server error, details: ${errorMessage}. Rejecting…`);
-        reject(errorMessage);
+      if (success) {
+        resolve(data);
       } else {
-        log.warn(`Request to ${url} with data ${reqParameters} failed. Unknown error: ${errorMessage}. Rejecting…`);
-        reject(errorMessage);
+        const binanceErrorInfo = `[${error.code}] ${trimAny(error.message, ' .')}`;
+        const errorMessage = httpCode ? `${httpCode} ${httpMessage}, ${binanceErrorInfo}` : String(responseOrError);
+
+        data.binanceErrorInfo = binanceErrorInfo;
+
+        if (httpCode >= 400 && httpCode <= 409) {
+          const unexpectedErrorCode = data && (error.code >= -1100 || error.code <= -2013) ?
+            ` Unexpected error code: ${error.code}.` : '';
+
+          log.log(`Binance processed a request to ${url} with data ${reqParameters}, but with error: ${errorMessage}.${unexpectedErrorCode} Resolving…`);
+
+          resolve(data);
+        } else {
+          const httpErrorCodeDescriptions = {
+            429: 'Rate limit exceeded',
+            418: 'IP has been blocked because of rate limit exceeded',
+            500: 'Internal server error',
+          };
+
+          const errorDescription = httpErrorCodeDescriptions[httpCode] ?? 'Unknown error';
+
+          log.warn(`Request to ${url} with data ${reqParameters} failed. ${errorDescription}, details: ${errorMessage}. Rejecting…`);
+
+          reject(errorMessage);
+        }
       }
-    } catch (e) {
-      log.warn(`Error while processing response of request to ${url} with data ${reqParameters}: ${e}. Data object I've got: ${JSON.stringify(binanceData)}.`);
-      reject(`Unable to process data: ${JSON.stringify(binanceData)}. ${e}`);
+    } catch (error) {
+      log.warn(`Error while processing response of request to ${url} with data ${reqParameters}: ${error}. Data object I've got: ${JSON.stringify(data)}.`);
+      reject(`Unable to process data: ${JSON.stringify(data)}. ${error}`);
     }
   };
-
-  /**
-   * Creates an url params string as: key1=value1&key2=value2
-   * @param {Object} data Request params
-   * @returns {String}
-   */
-  function getParamsString(data) {
-    const params = [];
-
-    for (const key in data) {
-      const v = data[key];
-      params.push(key + '=' + v);
-    }
-
-    return params.join('&');
-  }
-
-  /**
-   * Creates a full url with params as https://data.azbit.com/api/endpoint?key1=value1&key2=value2
-   * @param {Object} data Request params
-   * @returns {String}
-   */
-  function getUrlWithParams(url, data) {
-    const queryString = getParamsString(data);
-
-    if (queryString) {
-      url = url + '?' + queryString;
-    }
-
-    return url;
-  }
 
   /**
    * Makes a request to public endpoint
@@ -118,22 +96,22 @@ module.exports = function() {
    * @param {Object} data Request params
    * @returns {*}
    */
-  function publicRequest(path, data, type = 'get') {
-    let url = `${WEB_BASE}${path}`;
-    const urlBase = url;
+  function publicRequest(type, path, params) {
+    const url = `${WEB_BASE}${path}`;
 
-    const queryString = getParamsString(data);
-    url = getUrlWithParams(url, data);
+    const queryString = getParamsString(params);
 
     return new Promise((resolve, reject) => {
       const httpOptions = {
-        url: url,
+        url,
+        params,
         method: type,
         timeout: 10000,
       };
+
       axios(httpOptions)
-          .then((response) => handleResponse(response, resolve, reject, undefined, queryString, urlBase))
-          .catch((error) => handleResponse(error, resolve, reject, undefined, queryString, urlBase));
+          .then((response) => handleResponse(response, resolve, reject, queryString, url))
+          .catch((error) => handleResponse(error, resolve, reject, queryString, url));
     });
   }
 
@@ -144,34 +122,34 @@ module.exports = function() {
    * @param {String} method Request type: get, post, delete
    * @returns {*}
    */
-  function protectedRequest(path, data, type) {
-    let url = `${WEB_BASE}${path}`;
-    const urlBase = url;
+  function protectedRequest(type, path, data) {
+    const url = `${WEB_BASE}${path}`;
 
     data.timestamp = Date.now();
     data.signature = getSignature(config.secret_key, getParamsString(data));
 
     const bodyString = getParamsString(data);
 
-    if (type !== 'post') {
-      url = getUrlWithParams(url, data);
-    }
-
     return new Promise((resolve, reject) => {
       const httpOptions = {
-        url: url,
+        url,
         method: type,
         timeout: 10000,
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
           'X-MBX-APIKEY': config.apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        data: type === 'get' || type === 'delete' ? undefined : bodyString,
       };
 
+      if (type === 'post') {
+        httpOptions.data = bodyString;
+      } else {
+        httpOptions.params = data;
+      }
+
       axios(httpOptions)
-          .then((response) => handleResponse(response, resolve, reject, bodyString, undefined, urlBase))
-          .catch((error) => handleResponse(error, resolve, reject, bodyString, undefined, urlBase));
+          .then((response) => handleResponse(response, resolve, reject, bodyString, url))
+          .catch((error) => handleResponse(error, resolve, reject, bodyString, url));
     });
   }
 
@@ -189,7 +167,7 @@ module.exports = function() {
   }
 
   const EXCHANGE_API = {
-    setConfig: function(apiServer, apiKey, secretKey, tradePwd, logger, publicOnly = false) {
+    setConfig(apiServer, apiKey, secretKey, tradePwd, logger, publicOnly = false) {
       if (apiServer) {
         WEB_BASE = apiServer;
       }
@@ -200,9 +178,9 @@ module.exports = function() {
 
       if (!publicOnly) {
         config = {
-          'apiKey': apiKey,
-          'secret_key': secretKey,
-          'tradePwd': tradePwd,
+          apiKey,
+          tradePwd,
+          secret_key: secretKey,
         };
       }
     },
@@ -213,8 +191,8 @@ module.exports = function() {
      * @returns {Object} { balances[], permissions[], accountType, canTrade, canWithdraw, canDeposit, brokered, requireSelfTradePrevention, updateTime,
      *   makerCommission, takerCommission, buyerCommission, sellerCommission, commissionRates{} }
      */
-    getBalances: function() {
-      return protectedRequest('/api/v3/account', {}, 'get');
+    getBalances() {
+      return protectedRequest('get', '/api/v3/account', {});
     },
 
     /**
@@ -223,14 +201,8 @@ module.exports = function() {
      * @param {String} symbol In Binance format as ETHUSDT. Optional. Warn: request weight is 40 when the symbol is omitted.
      * @return {Object}
      */
-    getOrders: function(symbol) {
-      const data = {};
-
-      if (symbol) {
-        data.symbol = symbol;
-      }
-
-      return protectedRequest('/api/v3/openOrders', data, 'get');
+    getOrders(symbol) {
+      return protectedRequest('get', '/api/v3/openOrders', { symbol });
     },
 
     /**
@@ -251,7 +223,7 @@ module.exports = function() {
      * SELL side, the order will sell as much BTC needed to receive quoteOrderQty USDT.
      * @returns {Object}
      */
-    addOrder: function(symbol, amount, quoteAmount, price, side, type) {
+    addOrder(symbol, amount, quoteAmount, price, side, type) {
       const data = {
         symbol,
         side: side.toUpperCase(),
@@ -262,15 +234,13 @@ module.exports = function() {
         data.price = price;
         data.quantity = amount;
         data.timeInForce = 'GTC';
+      } else if (amount) {
+        data.quantity = amount;
       } else {
-        if (amount) {
-          data.quantity = amount;
-        } else {
-          data.quoteOrderQty = quoteAmount;
-        }
+        data.quoteOrderQty = quoteAmount;
       }
 
-      return protectedRequest('/api/v3/order', data, 'post');
+      return protectedRequest('post', '/api/v3/order', data);
     },
 
     /**
@@ -280,17 +250,15 @@ module.exports = function() {
      * @param {String} symbol In Binance format as ETHUSDT
      * @returns {Object} 200, { orderId, status, ... }
      * Order doesn't exist: 400, { code: -2013, msg: 'Order does not exist.' }
-     * Wrong orderId (not a Number): 400, { code: -1100, msg: 'Illegal characters found in parameter 'orderId'; legal range is '^[0-9]{1,20}$'.' } 
+     * Wrong orderId (not a Number): 400, { code: -1100, msg: 'Illegal characters found in parameter 'orderId'; legal range is '^[0-9]{1,20}$'.' }
      * No deals: { orderId, status: 'NEW', ... }
      * Cancelled order: { orderId, status: 'CANCELED', ... }
      */
-    getOrder: function(orderId, symbol) {
-      const data = {
-        orderId: +orderId,
+    getOrder(orderId, symbol) {
+      return protectedRequest('get', '/api/v3/order', {
         symbol,
-      };
-
-      return protectedRequest('/api/v3/order', data, 'get');
+        orderId: +orderId,
+      });
     },
 
     /**
@@ -300,11 +268,11 @@ module.exports = function() {
      * @param {Number} orderId Example: '3065308830'
      * @returns {Object} { "status": "CANCELED", ... }
      */
-    cancelOrder: function(orderId, symbol) {
-      return protectedRequest(`/api/v3/order`, {
-        orderId: +orderId,
+    cancelOrder(orderId, symbol) {
+      return protectedRequest('delete', '/api/v3/order', {
         symbol,
-      }, 'delete');
+        orderId: +orderId,
+      });
     },
 
     /**
@@ -313,8 +281,8 @@ module.exports = function() {
      * @param {String} symbol In Binance format as ETHUSDT
      * @returns {Object} [{ "status": "CANCELED", ... }]
      */
-    cancelAllOrders: function(symbol) {
-      return protectedRequest('/api/v3/openOrders', { symbol }, 'delete');
+    cancelAllOrders(symbol) {
+      return protectedRequest('delete', '/api/v3/openOrders', { symbol });
     },
 
     /**
@@ -323,14 +291,8 @@ module.exports = function() {
      * @param {String} symbol In Binance format as ETHUSDT. Optional. Warn: request weight is 40 when the symbol is omitted.
      * @returns {Object}
      */
-    ticker: function(symbol) {
-      const data = {};
-
-      if (symbol) {
-        data.symbol = symbol;
-      }
-
-      return publicRequest('/api/v3/ticker/24hr', data, 'get');
+    ticker(symbol) {
+      return publicRequest('get', '/api/v3/ticker/24hr', { symbol });
     },
 
     /**
@@ -340,11 +302,11 @@ module.exports = function() {
      * @param {Number} limit Default 100; max 5000. If limit > 5000, then the response will truncate to 5000. With limit 1-100, request weight is 1.
      * @returns {Object}
      */
-    orderBook: function(symbol, limit = 100) {
-      return publicRequest(`/api/v3/depth`, {
+    orderBook(symbol, limit = 100) {
+      return publicRequest('get', '/api/v3/depth', {
         symbol,
         limit,
-      }, 'get');
+      });
     },
 
     /**
@@ -354,11 +316,11 @@ module.exports = function() {
      * @param {Number} limit Default 500, max is 1000
      * @returns {Object} Last trades
      */
-    getTradesHistory: function(symbol, limit = 500) {
-      return publicRequest(`/api/v3/trades`, {
-        limit,
+    getTradesHistory(symbol, limit = 500) {
+      return publicRequest('get', '/api/v3/trades', {
         symbol,
-      }, 'get');
+        limit,
+      });
     },
 
     /**
@@ -367,8 +329,8 @@ module.exports = function() {
      * https://binance-docs.github.io/apidocs/spot/en/#exchange-information
      * @returns {Object} { symbols[], timezone, serverTime, rateLimits[], exchangeFilters[] }
     */
-    markets: function() {
-      return publicRequest('/api/v3/exchangeInfo', {}, 'get');
+    markets() {
+      return publicRequest('get', '/api/v3/exchangeInfo', {});
     },
 
     /**
@@ -378,16 +340,11 @@ module.exports = function() {
      * @param {String | undefined} network If network is not send, return with default network of the coin
      * @returns {Object}
      */
-    getDepositAddress: function(coin, network) {
-      const data = {
+    getDepositAddress(coin, network) {
+      return protectedRequest('get', '/sapi/v1/capital/deposit/address', {
         coin,
-      };
-
-      if (network) {
-        data.network = network;
-      }
-
-      return protectedRequest('/sapi/v1/capital/deposit/address', data, 'get');
+        network,
+      });
     },
 
     /**
@@ -396,7 +353,7 @@ module.exports = function() {
      * @returns {Promise<Array>}
      */
     getCurrencies() {
-      return protectedRequest('/sapi/v1/capital/config/getall', {}, 'get');
+      return protectedRequest('get', '/sapi/v1/capital/config/getall', {});
     },
 
     /**
@@ -406,13 +363,7 @@ module.exports = function() {
      * @returns {Promise<Object>}
      */
     getFees(symbol) {
-      const data = {};
-
-      if (symbol) {
-        data.symbol = symbol;
-      }
-
-      return protectedRequest(`/sapi/v1/asset/tradeFee`, data, 'get');
+      return protectedRequest('get', '/sapi/v1/asset/tradeFee', { symbol });
     },
   };
 
