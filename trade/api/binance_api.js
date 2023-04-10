@@ -61,7 +61,9 @@ module.exports = function() {
         const binanceErrorInfo = `[${error.code}] ${trimAny(error.message, ' .')}`;
         const errorMessage = httpCode ? `${httpCode} ${httpMessage}, ${binanceErrorInfo}` : String(responseOrError);
 
-        data.binanceErrorInfo = binanceErrorInfo;
+        if (typeof data === 'object') {
+          data.binanceErrorInfo = binanceErrorInfo;
+        }
 
         if (httpCode >= 400 && httpCode <= 409) {
           const unexpectedErrorCode = data && (error.code > -1100 || error.code < -2013) ?
