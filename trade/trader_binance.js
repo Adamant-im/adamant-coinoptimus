@@ -91,12 +91,12 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
           }
 
           resolve(result);
-        } catch (e) {
-          log.warn(`Error while processing getMarkets(${paramString}) request: ${e}`);
+        } catch (error) {
+          log.warn(`Error while processing getMarkets(${paramString}) request: ${error}`);
           resolve(undefined);
         }
-      }).catch((err) => {
-        log.warn(`API request getMarkets(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+      }).catch((error) => {
+        log.warn(`API request getMarkets(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
         resolve(undefined);
       }).finally(() => {
         module.exports.gettingMarkets = false;
@@ -195,8 +195,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
 
       try {
         data = await binanceApiClient.getOrders(coinPair.pair);
-      } catch (err) {
-        log.warn(`API request getOpenOrders(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+      } catch (error) {
+        log.warn(`API request getOpenOrders(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
         return undefined;
       }
 
@@ -233,8 +233,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         });
 
         return result;
-      } catch (e) {
-        log.warn(`Error while processing getOpenOrders(${paramString}) request results: ${JSON.stringify(data)}. ${e}`);
+      } catch (error) {
+        log.warn(`Error while processing getOpenOrders(${paramString}) request results: ${JSON.stringify(data)}. ${error}`);
         return undefined;
       }
     },
@@ -255,8 +255,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
 
       try {
         order = await binanceApiClient.getOrder(orderId, coinPair.pairPlain);
-      } catch (err) {
-        log.warn(`API request getOrderDetails(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+      } catch (error) {
+        log.warn(`API request getOrderDetails(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
         return undefined;
       }
 
@@ -304,8 +304,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             status: 'unknown', // Order doesn't exist or Wrong orderId
           };
         }
-      } catch (e) {
-        log.warn(`Error while processing getOrderDetails(${paramString}) request results: ${JSON.stringify(order)}. ${e}`);
+      } catch (error) {
+        log.warn(`Error while processing getOrderDetails(${paramString}) request results: ${JSON.stringify(order)}. ${error}`);
         return undefined;
       }
     },
@@ -331,8 +331,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             log.log(`Unable to cancel ${orderId} on ${coinPair.pairReadable}: ${errorMessage}.`);
             resolve(false);
           }
-        }).catch((err) => {
-          log.warn(`API request cancelOrder(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+        }).catch((error) => {
+          log.warn(`API request cancelOrder(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
           resolve(undefined);
         });
       });
@@ -357,8 +357,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             log.log(`Unable to cancel all orders on ${coinPair.pairReadable}: ${errorMessage}.`);
             resolve(false);
           }
-        }).catch((err) => {
-          log.warn(`API request cancelAllOrders(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+        }).catch((error) => {
+          log.warn(`API request cancelAllOrders(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
           resolve(undefined);
         });
       });
@@ -387,12 +387,12 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
               low: +ticker.lowPrice,
               last: +ticker.lastPrice,
             });
-          } catch (e) {
-            log.warn(`Error while processing getRates(${paramString}) request: ${e}`);
+          } catch (error) {
+            log.warn(`Error while processing getRates(${paramString}) request: ${error}`);
             resolve(undefined);
           }
-        }).catch((err) => {
-          log.warn(`API request getRates(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+        }).catch((error) => {
+          log.warn(`API request getRates(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
           resolve(undefined);
         });
       });
@@ -490,8 +490,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
 
         errorMessage = response?.binanceErrorInfo;
         orderId = response?.orderId;
-      } catch (err) {
-        message = `API request addOrder(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}.`;
+      } catch (error) {
+        message = `API request addOrder(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}.`;
         log.warn(message);
         order.orderId = false;
         order.message = message;
@@ -557,13 +557,12 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             });
 
             resolve(result);
-          } catch (e) {
-            log.warn(`Error while processing orderBook(${paramString}) request: ${e}`);
+          } catch (error) {
+            log.warn(`Error while processing orderBook(${paramString}) request: ${error}`);
             resolve(undefined);
           }
-
-        }).catch((err) => {
-          log.warn(`API request getOrderBook(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+        }).catch((error) => {
+          log.warn(`API request getOrderBook(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
           resolve(undefined);
         });
       });
@@ -597,12 +596,12 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             });
 
             resolve(result);
-          } catch (e) {
-            log.warn(`Error while processing getTradesHistory(${paramString}) request: ${e}`);
+          } catch (error) {
+            log.warn(`Error while processing getTradesHistory(${paramString}) request: ${error}`);
             resolve(undefined);
           }
-        }).catch((err) => {
-          log.log(`API request getTradesHistory(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}.`);
+        }).catch((error) => {
+          log.log(`API request getTradesHistory(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}.`);
           resolve(undefined);
         });
       });
@@ -620,8 +619,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
 
       try {
         data = await binanceApiClient.getCurrencies();
-      } catch (err) {
-        log.warn(`API request getDepositAddress(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+      } catch (error) {
+        log.warn(`API request getDepositAddress(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
         return undefined;
       }
 
@@ -640,8 +639,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         }));
 
         return depositAddresses;
-      } catch (e) {
-        log.warn(`Error while processing getDepositAddress(${paramString}) request results: ${JSON.stringify(data)}. ${e}`);
+      } catch (error) {
+        log.warn(`Error while processing getDepositAddress(${paramString}) request results: ${JSON.stringify(data)}. ${error}`);
         return undefined;
       }
     },
@@ -682,12 +681,12 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             }
 
             resolve(result);
-          } catch (e) {
-            log.warn(`Error while processing getFees(${paramString}) request: ${e}`);
+          } catch (error) {
+            log.warn(`Error while processing getFees(${paramString}) request: ${error}`);
             resolve(undefined);
           }
-        }).catch((err) => {
-          log.log(`API request getFees(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}.`);
+        }).catch((error) => {
+          log.log(`API request getFees(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}.`);
           resolve(undefined);
         });
       });
