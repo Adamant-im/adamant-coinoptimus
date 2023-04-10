@@ -158,27 +158,31 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
     async getBalances(nonzero = true) {
       const paramString = `nonzero: ${nonzero}`;
 
+      let data;
+
       try {
-        const data = await binanceApiClient.getBalances();
-
-        try {
-          let result = data.balances.map((crypto) => ({
-            code: crypto.asset,
-            free: +crypto.free,
-            freezed: +crypto.locked,
-            total: +crypto.free + +crypto.locked,
-          }));
-
-          if (nonzero) {
-            result = result.filter((crypto) => crypto.free || crypto.freezed);
-          }
-
-          return result;
-        } catch (error) {
-          log.warn(`Error while processing getBalances(${paramString}) request: ${error}`);
-        }
+        data = await binanceApiClient.getBalances();
       } catch (error) {
-        log.warn(`API request getBalances(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
+        return log.warn(
+            `API request getBalances(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`
+        );
+      }
+
+      try {
+        let result = data.balances.map((crypto) => ({
+          code: crypto.asset,
+          free: +crypto.free,
+          freezed: +crypto.locked,
+          total: +crypto.free + +crypto.locked,
+        }));
+
+        if (nonzero) {
+          result = result.filter((crypto) => crypto.free || crypto.freezed);
+        }
+
+        return result;
+      } catch (error) {
+        log.warn(`Error while processing getBalances(${paramString}) request: ${error}`);
       }
     },
 
