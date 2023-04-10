@@ -64,7 +64,7 @@ module.exports = function() {
         data.binanceErrorInfo = binanceErrorInfo;
 
         if (httpCode >= 400 && httpCode <= 409) {
-          const unexpectedErrorCode = data && (error.code >= -1100 || error.code <= -2013) ?
+          const unexpectedErrorCode = data && (error.code > -1100 || error.code < -2013) ?
             ` Unexpected error code: ${error.code}.` : '';
 
           log.log(`Binance processed a request to ${url} with data ${reqParameters}, but with error: ${errorMessage}.${unexpectedErrorCode} Resolving…`);
