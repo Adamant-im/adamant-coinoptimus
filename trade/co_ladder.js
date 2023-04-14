@@ -514,7 +514,7 @@ module.exports = {
 
         log.info(`Ladder: Successfully placed ld-order to ${orderInfo} with ID ${newOrder._id}.${updateStateString}`);
       } else {
-        let updateStateString = updateLadderState(order, 'Not placed', 'No order id returned');
+        let updateStateString = updateLadderState(newOrder, 'Not placed', 'No order id returned');
         if (updateStateString) {
           updateStateString = ` Its ${updateStateString}.`;
         }

@@ -6,13 +6,15 @@ const utils = require('../helpers/utils');
 const apiServer = 'https://api.p2pb2b.com';
 const exchangeName = 'P2PB2B';
 
-module.exports = (apiKey, secretKey, pwd, log, publicOnly = false) => {
+module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = true) => {
   const P2PB2BClient = P2PB2B();
 
   P2PB2BClient.setConfig(apiServer, apiKey, secretKey, pwd, log, publicOnly);
 
   // Fulfill markets on initialization
-  getMarkets();
+  if (loadMarket) {
+    getMarkets();
+  }
 
   function getMarkets(pair) {
     const paramString = `pair: ${pair}`;

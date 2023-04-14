@@ -85,28 +85,12 @@ module.exports = function() {
   };
 
   /**
-   * Creates an url params string as: key1=value1&key2=value2
-   * @param {Object} data Request params
-   * @returns {String}
-   */
-  function getParamsString(data) {
-    const params = [];
-
-    for (const key in data) {
-      const v = data[key];
-      params.push(key + '=' + v);
-    }
-
-    return params.join('&');
-  }
-
-  /**
    * Creates a full url with params as https://data.azbit.com/api/endpoint?key1=value1&key2=value2
    * @param {Object} data Request params
    * @returns {String}
    */
   function getUrlWithParams(url, data) {
-    const queryString = getParamsString(data);
+    const queryString = utils.getParamsString(data);
 
     if (queryString) {
       url = url + '?' + queryString;
@@ -125,7 +109,7 @@ module.exports = function() {
     let url = `${WEB_BASE}${path}`;
     const urlBase = url;
 
-    const queryString = getParamsString(data);
+    const queryString = utils.getParamsString(data);
     url = getUrlWithParams(url, data);
 
     return new Promise((resolve, reject) => {
