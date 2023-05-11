@@ -764,12 +764,12 @@ async function buy_sell(params, type) {
  * @returns {Object} { msgNotify, msgSendBack, notifyType }
  */
 function params() {
-  let output = `I am set to work with ${config.pair} pair on ${config.exchangeName}. Current trading settings:`;
-  output += '\n\n' + JSON.stringify(tradeParams, null, 3);
+  const settings = JSON.stringify(tradeParams, null, 2);
+  const msgSendBack = `I am set to work with ${config.pair} pair on ${config.exchangeName}. Current trading settings: \n\n${settings}`;
 
   return {
     msgNotify: '',
-    msgSendBack: `${output}`,
+    msgSendBack,
     notifyType: 'log',
   };
 }
