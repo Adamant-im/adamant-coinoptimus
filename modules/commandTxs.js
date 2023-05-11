@@ -760,6 +760,21 @@ async function buy_sell(params, type) {
 }
 
 /**
+ * Shows trading params
+ * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ */
+function params() {
+  let output = `I am set to work with ${config.pair} pair on ${config.exchangeName}. Current trading settings:`;
+  output += '\n\n' + JSON.stringify(tradeParams, null, 3);
+
+  return {
+    msgNotify: '',
+    msgSendBack: `${output}`,
+    notifyType: 'log',
+  };
+}
+
+/**
  * Shows help info
  * @param {*} commandFix
  * @returns {Object} { msgNotify, msgSendBack, notifyType }
@@ -1411,6 +1426,7 @@ const aliases = {
 };
 
 const commands = {
+  params,
   help,
   rates,
   stats,
