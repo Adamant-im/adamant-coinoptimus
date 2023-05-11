@@ -142,9 +142,6 @@ async function start(params) {
   let msgNotify; let msgSendBack; let strategyName; let infoString;
 
   if (strategy === 'ld') {
-    tradeParams.co_isActive = true;
-    tradeParams.co_strategy = strategy;
-
     // start ld {AMOUNT} {COIN} {COUNT} {STEP%} [mid {MIDPRICE} COIN2]
 
     const pairObj = orderUtils.parseMarket(config.pair);
@@ -265,6 +262,9 @@ async function start(params) {
     }
 
     if (isConfirmed) {
+      tradeParams.co_isActive = true;
+      tradeParams.co_strategy = strategy;
+
       tradeParams.mm_ladderReInit = true;
       tradeParams.mm_isLadderActive = true;
 
