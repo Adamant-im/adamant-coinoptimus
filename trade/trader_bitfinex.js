@@ -102,6 +102,11 @@ const bitfinexMethods = {
   // Skipped EURT, CNHT, XAUT, MXNT
 };
 
+// Skip shit besides TEST*
+const skipSymbols = [
+  'EUTF0', 'USTF0',
+];
+
 module.exports = (
     apiKey,
     secretKey,
@@ -202,29 +207,31 @@ module.exports = (
 
     module.exports.gettingCurrencies = true;
     return new Promise((resolve) => {
-      bitfinexApiClient.currencies().then((currencies = []) => {
+      bitfinexApiClient.currencies().then((currencies) => {
         try {
           const result = {};
-          currencies?.[0].forEach((currency) => { // 0 - pub:list:currency
-            result[currency] = {
-              name: undefined, // To be set with 1 - pub:map:currency:label
-              symbol: currency, // Usual ticker. May by replaced with 2 - pub:map:currency:sym. UST -> USDT
-              status: 'ONLINE', // 'ONLINE', 'OFFLINE'
-              comment: undefined,
-              confirmations: undefined, // for deposit
-              withdrawalFee: undefined,
-              minWithdrawal: undefined,
-              maxWithdrawal: undefined,
-              logoUrl: undefined, // logo url is not provided by api
-              exchangeAddress: undefined,
-              decimals: marketDecimals,
-              precision: marketPrecision,
-              minSize: undefined,
-              type: undefined, // 'fiat'
-              networks: undefined,
-              defaultNetwork: undefined,
-              apiSymbol: currency, // Bitfinex ticker as UST for USDT
-            };
+          currencies[0].forEach((currency) => { // 0 - pub:list:currency
+            if (!currency.includes('TEST') && !skipSymbols.includes(currency)) {
+              result[currency] = {
+                name: undefined, // To be set with 1 - pub:map:currency:label
+                symbol: currency, // Usual ticker. May by replaced with 2 - pub:map:currency:sym. UST -> USDT
+                status: 'ONLINE', // 'ONLINE', 'OFFLINE'
+                comment: undefined,
+                confirmations: undefined, // for deposit
+                withdrawalFee: undefined,
+                minWithdrawal: undefined,
+                maxWithdrawal: undefined,
+                logoUrl: undefined, // logo url is not provided by api
+                exchangeAddress: undefined,
+                decimals: marketDecimals,
+                precision: marketPrecision,
+                minSize: undefined,
+                type: undefined, // 'fiat'
+                networks: undefined,
+                defaultNetwork: undefined,
+                apiSymbol: currency, // Bitfinex ticker as UST for USDT
+              };
+            }
           });
 
           currencies?.[1].forEach((currency) => { // 1 - pub:map:currency:label
