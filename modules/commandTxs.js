@@ -142,9 +142,6 @@ async function start(params) {
   let msgNotify; let msgSendBack; let strategyName; let infoString;
 
   if (strategy === 'ld') {
-    tradeParams.co_isActive = true;
-    tradeParams.co_strategy = strategy;
-
     // start ld {AMOUNT} {COIN} {COUNT} {STEP%} [mid {MIDPRICE} COIN2]
 
     const pairObj = orderUtils.parseMarket(config.pair);
@@ -265,6 +262,9 @@ async function start(params) {
     }
 
     if (isConfirmed) {
+      tradeParams.co_isActive = true;
+      tradeParams.co_strategy = strategy;
+
       tradeParams.mm_ladderReInit = true;
       tradeParams.mm_isLadderActive = true;
 
@@ -754,6 +754,21 @@ async function buy_sell(params, type) {
 
   return {
     msgNotify,
+    msgSendBack,
+    notifyType: 'log',
+  };
+}
+
+/**
+ * Shows trading params
+ * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ */
+function params() {
+  const settings = JSON.stringify(tradeParams, null, 2);
+  const msgSendBack = `I am set to work with ${config.pair} pair on ${config.exchangeName}. Current trading settings: \n\n${settings}`;
+
+  return {
+    msgNotify: '',
     msgSendBack,
     notifyType: 'log',
   };
@@ -1411,6 +1426,7 @@ const aliases = {
 };
 
 const commands = {
+  params,
   help,
   rates,
   stats,
