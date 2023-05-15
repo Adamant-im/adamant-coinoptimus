@@ -8,11 +8,8 @@ const utils = require('../helpers/utils');
 
 module.exports = {
   orderPurposes: {
-    'mm': 'Market making',
-    'ob': 'Dynamic order book',
-    'liq': 'Liquidity',
-    'pw': 'Price watcher',
-    'man': 'Manual', // manually placed order with /fill, /buy, /sell, /make price commands
+    'ld': 'Ladder',
+    'man': 'Manual', // manually placed order with /buy & /sell commands
     'all': 'All types',
     // unk: unknown order (not in the local bot's database)
   },
