@@ -33,6 +33,7 @@ Currently the only trade strategy implemented is Optimal ladder/grid trade strat
 * [P2PB2B](https://p2pb2b.com)
 * [Azbit](https://azbit.com?referralCode=9YVWYAF)
 * [StakeCube](https://stakecube.net/?team=adm)
+* [Bitfinex](https://bitfinex.com)
 
 # Usage and Installation
 

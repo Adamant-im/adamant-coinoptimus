@@ -48,7 +48,8 @@
     "P2PB2B",
     "Azbit",
     "Binance",
-    "StakeCube"
+    "StakeCube",
+    "Bitfinex"
   ],
 
   /** Exchange to work with. Case insensitive. **/
