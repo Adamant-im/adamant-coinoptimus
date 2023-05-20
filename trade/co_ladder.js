@@ -79,7 +79,7 @@ module.exports = {
         ladderOrders = await this.closeLadderOrders(ladderOrders, 'User re-initialized a ladder');
 
         if (ladderOrders.length === 0) {
-          log.log(`Ladder: Re-initialized the ladder successfully. Ready to build the new one.`);
+          log.log('Ladder: Re-initialized the ladder successfully. Ready to build the new one.');
 
           tradeParams.mm_ladderReInit = false;
           utils.saveConfig();
@@ -137,7 +137,7 @@ module.exports = {
               let updateStateString = updateLadderState(order, 'Missed');
               updateStateString = ` Its ${updateStateString}, it will be re-created.`;
 
-              const isNotFilledViaApiString = isOrderNotFilledByApi ? `Exchange's API described the order as not filled.` : 'Ld-order with lower index is not filled.';
+              const isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled.' : 'Ld-order with lower index is not filled.';
 
               log.warn(`Ladder: It seems ${utils.inclineNumber(index)} ${type} ld-order ${order._id} @${order.price} ${config.coin2} is mistakenly marked as filled: ${isNotFilledViaApiString}${updateStateString}`);
               await order.save();
@@ -170,7 +170,7 @@ module.exports = {
                 updateCrossTypeOrderStateString = `${crossTypeOrderString} wasn't found.`;
               }
 
-              const isFilledViaApiString = isOrderFilledByApi ? `Exchange's API described the order as filled.` : 'No evidence that the order is not filled.';
+              const isFilledViaApiString = isOrderFilledByApi ? 'Exchange\'s API described the order as filled.' : 'No evidence that the order is not filled.';
 
               let filledMessage = `Considering ${utils.inclineNumber(index)} ld-order ${order._id} to ${type}`;
               filledMessage += ` ${(order.coin1AmountInitial || order.coin1Amount).toFixed(coin1Decimals)} ${config.coin1} for ${order.coin2Amount.toFixed(coin2Decimals)} ${config.coin2}`;
@@ -327,7 +327,7 @@ module.exports = {
       } catch (e) {
         log.error(`Error in closeLadderOrders() of ${utils.getModuleName(module.id)} module: ` + e);
       }
-    };
+    }
 
     return updatedLdOrders;
   },
@@ -391,7 +391,7 @@ module.exports = {
     const { ordersDb } = db;
     let newOrder = {};
 
-    let actionString = ``;
+    let actionString = '';
 
     try {
       const coin1Decimals = orderUtils.parseMarket(config.pair).coin1Decimals;
@@ -436,16 +436,16 @@ module.exports = {
           // _id: orderReq.orderId,
           date: utils.unixTimeStampMs(),
           purpose: 'ld', // ld: ladder order
-          type: type,
+          type,
           // targetType: type,
           exchange: config.exchange,
           apikey: config.apikey,
           pair: config.pair,
           coin1: config.coin1,
           coin2: config.coin2,
-          price: price,
-          coin1Amount: coin1Amount,
-          coin2Amount: coin2Amount,
+          price,
+          coin1Amount,
+          coin2Amount,
           LimitOrMarket: 1, // 1 for limit price. 0 for Market price.
           isProcessed: false,
           isExecuted: false,
@@ -589,7 +589,7 @@ async function isEnoughCoins(coin1, coin2, amount1, amount2, type) {
       };
     }
   } else {
-    log.warn(`Ladder: Unable to get balances for placing ld-order.`);
+    log.warn('Ladder: Unable to get balances for placing ld-order.');
     return {
       result: false,
     };
