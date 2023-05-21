@@ -216,7 +216,7 @@ module.exports = function() {
      * @return {Promise<Object>}
      * https://github.com/stakecube-hub/stakecube-api-docs/blob/master/rest-api/exchange.md#my-open-orders
      */
-    async getOrders(symbol, limit = 1000) {
+    getOrders(symbol, limit = 1000) {
       const data = {
         market: symbol,
         limit,
