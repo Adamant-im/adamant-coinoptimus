@@ -403,15 +403,15 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       return new Promise((resolve, reject) => {
         azbitClient.ticker(pair_.pair).then(function(data) {
           try {
-            const ticker = data;
+            const [ticker] = data;
 
             resolve({
               ask: +ticker.askPrice,
               bid: +ticker.bidPrice,
               volume: +ticker.volume24h / +ticker.price,
               volumeInCoin2: +ticker.volume24h,
-              high: undefined,
-              low: undefined,
+              high: +ticker.high24h,
+              low: +ticker.low24h,
               last: +ticker.price,
             });
           } catch (e) {
