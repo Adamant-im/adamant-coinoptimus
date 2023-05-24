@@ -403,7 +403,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       return new Promise((resolve, reject) => {
         azbitClient.ticker(pair_.pair).then(function(data) {
           try {
-            const ticker = data[0];
+            const [ticker] = data;
 
             resolve({
               ask: +ticker.askPrice,
