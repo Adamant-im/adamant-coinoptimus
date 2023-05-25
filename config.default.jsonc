@@ -47,7 +47,9 @@
   "exchanges": [
     "P2PB2B",
     "Azbit",
-    "Binance"
+    "Binance",
+    "StakeCube",
+    "Bitfinex"
   ],
 
   /** Exchange to work with. Case insensitive. **/

@@ -18,6 +18,7 @@ const orderCollector = require('./orderCollector');
 let lastNotifyBalancesTimestamp = 0;
 let lastNotifyPriceTimestamp = 0;
 
+const NOTIFY_BALANCE_INDEX_PERCENT = 33; // Don't notify 'Not enough balance' when ~ placing ld-orders with index greater than 3 out of 10 — a bot still has coins to place closest to spread orders
 const AMOUNT_DEVIATION = 0.02; // 2% random factor
 const INTERVAL_MIN = 10000;
 const INTERVAL_MAX = 15000;
@@ -79,7 +80,7 @@ module.exports = {
         ladderOrders = await this.closeLadderOrders(ladderOrders, 'User re-initialized a ladder');
 
         if (ladderOrders.length === 0) {
-          log.log(`Ladder: Re-initialized the ladder successfully. Ready to build the new one.`);
+          log.log('Ladder: Re-initialized the ladder successfully. Ready to build the new one.');
 
           tradeParams.mm_ladderReInit = false;
           utils.saveConfig();
@@ -137,7 +138,7 @@ module.exports = {
               let updateStateString = updateLadderState(order, 'Missed');
               updateStateString = ` Its ${updateStateString}, it will be re-created.`;
 
-              const isNotFilledViaApiString = isOrderNotFilledByApi ? `Exchange's API described the order as not filled.` : 'Ld-order with lower index is not filled.';
+              const isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled.' : 'Ld-order with lower index is not filled.';
 
               log.warn(`Ladder: It seems ${utils.inclineNumber(index)} ${type} ld-order ${order._id} @${order.price} ${config.coin2} is mistakenly marked as filled: ${isNotFilledViaApiString}${updateStateString}`);
               await order.save();
@@ -170,7 +171,7 @@ module.exports = {
                 updateCrossTypeOrderStateString = `${crossTypeOrderString} wasn't found.`;
               }
 
-              const isFilledViaApiString = isOrderFilledByApi ? `Exchange's API described the order as filled.` : 'No evidence that the order is not filled.';
+              const isFilledViaApiString = isOrderFilledByApi ? 'Exchange\'s API described the order as filled.' : 'No evidence that the order is not filled.';
 
               let filledMessage = `Considering ${utils.inclineNumber(index)} ld-order ${order._id} to ${type}`;
               filledMessage += ` ${(order.coin1AmountInitial || order.coin1Amount).toFixed(coin1Decimals)} ${config.coin1} for ${order.coin2Amount.toFixed(coin2Decimals)} ${config.coin2}`;
@@ -327,7 +328,7 @@ module.exports = {
       } catch (e) {
         log.error(`Error in closeLadderOrders() of ${utils.getModuleName(module.id)} module: ` + e);
       }
-    };
+    }
 
     return updatedLdOrders;
   },
@@ -391,7 +392,7 @@ module.exports = {
     const { ordersDb } = db;
     let newOrder = {};
 
-    let actionString = ``;
+    let actionString = '';
 
     try {
       const coin1Decimals = orderUtils.parseMarket(config.pair).coin1Decimals;
@@ -436,16 +437,16 @@ module.exports = {
           // _id: orderReq.orderId,
           date: utils.unixTimeStampMs(),
           purpose: 'ld', // ld: ladder order
-          type: type,
+          type,
           // targetType: type,
           exchange: config.exchange,
           apikey: config.apikey,
           pair: config.pair,
           coin1: config.coin1,
           coin2: config.coin2,
-          price: price,
-          coin1Amount: coin1Amount,
-          coin2Amount: coin2Amount,
+          price,
+          coin1Amount,
+          coin2Amount,
           LimitOrMarket: 1, // 1 for limit price. 0 for Market price.
           isProcessed: false,
           isExecuted: false,
@@ -476,7 +477,7 @@ module.exports = {
       }
 
       // Check balances
-      const balances = await isEnoughCoins(config.coin1, config.coin2, coin1Amount, coin2Amount, type);
+      const balances = await isEnoughCoins(config.coin1, config.coin2, coin1Amount, coin2Amount, type, index);
       if (!balances.result) {
         order = order || newOrder;
 
@@ -486,7 +487,10 @@ module.exports = {
         }
 
         if (balances.message) {
-          if (Date.now()-lastNotifyBalancesTimestamp > constants.HOUR) {
+          if (
+            Date.now()-lastNotifyBalancesTimestamp > constants.HOUR &&
+            index < Math.ceil(tradeParams.mm_ladderCount * NOTIFY_BALANCE_INDEX_PERCENT / 100)
+          ) {
             notify(`${config.notifyName}: ${balances.message}${updateStateString}`, 'warn', config.silent_mode);
             lastNotifyBalancesTimestamp = Date.now();
           } else {
@@ -547,11 +551,12 @@ module.exports = {
  * @param {Number} amount1 Amount in coin1 (base)
  * @param {Number} amount2 Amount in coin2 (quote)
  * @param {String} type 'buy' or 'sell'
+ * @param {Number} ladderIndex Ladder order index, for logging only
  * @returns {Object<Boolean, String>}
  *  result: if enough funds to place order
  *  message: error message
  */
-async function isEnoughCoins(coin1, coin2, amount1, amount2, type) {
+async function isEnoughCoins(coin1, coin2, amount1, amount2, type, ladderIndex) {
   const coin1Decimals = orderUtils.parseMarket(config.pair).coin1Decimals;
   const coin2Decimals = orderUtils.parseMarket(config.pair).coin2Decimals;
 
@@ -569,11 +574,11 @@ async function isEnoughCoins(coin1, coin2, amount1, amount2, type) {
       balance2freezed = balances.filter((crypto) => crypto.code === coin2)[0]?.freezed || 0;
 
       if ((!balance1free || balance1free < amount1) && type === 'sell') {
-        output = `Not enough balance to place ${amount1.toFixed(coin1Decimals)} ${coin1} ${type} ld-order. Free: ${balance1free.toFixed(coin1Decimals)} ${coin1}, frozen: ${balance1freezed.toFixed(coin1Decimals)} ${coin1}.`;
+        output = `Not enough balance to place ${amount1.toFixed(coin1Decimals)} ${coin1} ${type} ld-order with ${ladderIndex} index. Free: ${balance1free.toFixed(coin1Decimals)} ${coin1}, frozen: ${balance1freezed.toFixed(coin1Decimals)} ${coin1}.`;
         isBalanceEnough = false;
       }
       if ((!balance2free || balance2free < amount2) && type === 'buy') {
-        output = `Not enough balance to place ${amount2.toFixed(coin2Decimals)} ${coin2} ${type} ld-order. Free: ${balance2free.toFixed(coin2Decimals)} ${coin2}, frozen: ${balance2freezed.toFixed(coin2Decimals)} ${coin2}.`;
+        output = `Not enough balance to place ${amount2.toFixed(coin2Decimals)} ${coin2} ${type} ld-order with ${ladderIndex} index. Free: ${balance2free.toFixed(coin2Decimals)} ${coin2}, frozen: ${balance2freezed.toFixed(coin2Decimals)} ${coin2}.`;
         isBalanceEnough = false;
       }
 
@@ -583,13 +588,13 @@ async function isEnoughCoins(coin1, coin2, amount1, amount2, type) {
       };
 
     } catch (e) {
-      log.warn(`Ladder: Unable to process balances for placing ld-order: ${e}`);
+      log.warn(`Ladder: Unable to process balances for placing ld-order with ${ladderIndex} index: ${e}`);
       return {
         result: false,
       };
     }
   } else {
-    log.warn(`Ladder: Unable to get balances for placing ld-order.`);
+    log.warn(`Ladder: Unable to get balances for placing ld-order with ${ladderIndex} index.`);
     return {
       result: false,
     };
