@@ -11,6 +11,8 @@ const {
   adamant_notify_priority = [],
   slack = [],
   slack_priority = [],
+  discord_notify = [],
+  discord_notify_priority = [],
 } = config;
 
 module.exports = (messageText, type, silent_mode = false, isPriority = false) => {
@@ -74,6 +76,21 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
                 log.warn(`Failed to send notification message '${mdMessage}' to ${admAddress}. ${response.errorMessage}.`);
               }
             });
+          }
+        });
+      }
+
+      const discordKeys = isPriority ?
+        [...discord_notify, ...discord_notify_priority] :
+        discord_notify;
+
+      if (discordKeys.length) {
+        discordKeys.forEach((discordKey) => {
+          if (typeof discordKey === 'string') {
+            axios.post(discordKey, { content: message })
+                .catch((error) => {
+                  log.log(`Request to Discord with message ${message} failed. ${error}.`);
+                });
           }
         });
       }
