@@ -1,3 +1,6 @@
+/* eslint-disable object-shorthand */
+/* eslint-disable quote-props */
+
 const axios = require('axios');
 const config = require('../modules/configReader');
 const log = require('./log');
@@ -51,7 +54,7 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
         slackKeys.forEach((slackApp) => {
           if (typeof slackApp === 'string' && slackApp.length > 34) {
             axios.post(slackApp, params)
-                .catch(function(error) {
+                .catch((error) => {
                   log.log(`Request to Slack with message ${message} failed. ${error}.`);
                 });
           }
