@@ -1,3 +1,6 @@
+/* eslint-disable object-shorthand */
+/* eslint-disable quote-props */
+
 const axios = require('axios');
 const config = require('../modules/configReader');
 const log = require('./log');
@@ -8,6 +11,8 @@ const {
   adamant_notify_priority = [],
   slack = [],
   slack_priority = [],
+  discord_notify = [],
+  discord_notify_priority = [],
 } = config;
 
 module.exports = (messageText, type, silent_mode = false, isPriority = false) => {
@@ -51,7 +56,7 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
         slackKeys.forEach((slackApp) => {
           if (typeof slackApp === 'string' && slackApp.length > 34) {
             axios.post(slackApp, params)
-                .catch(function(error) {
+                .catch((error) => {
                   log.log(`Request to Slack with message ${message} failed. ${error}.`);
                 });
           }
@@ -71,6 +76,21 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
                 log.warn(`Failed to send notification message '${mdMessage}' to ${admAddress}. ${response.errorMessage}.`);
               }
             });
+          }
+        });
+      }
+
+      const discordKeys = isPriority ?
+        [...discord_notify, ...discord_notify_priority] :
+        discord_notify;
+
+      if (discordKeys.length) {
+        discordKeys.forEach((discordKey) => {
+          if (typeof discordKey === 'string') {
+            axios.post(discordKey, { content: message })
+                .catch((error) => {
+                  log.log(`Request to Discord with message ${message} failed. ${error}.`);
+                });
           }
         });
       }

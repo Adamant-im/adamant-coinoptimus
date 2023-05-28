@@ -85,6 +85,12 @@
   /** Slack keys for priority notifications. Optional. **/
   "slack_priority": [],
 
+  /** Discord keys for notificationis and monitoring. Optional. **/
+  "discord_notify": ["https://discord.com/api/webhooks/..."],
+
+  /** Discord keys for priority notificatons. Optional. **/
+  "disord_notify_priority": [],
+
   /**
     The software will use verbosity according to log_level.
     It can be none < error < warn < info < log.
