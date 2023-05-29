@@ -103,7 +103,6 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
 
         discordKeys.forEach((discordKey) => {
           if (typeof discordKey === 'string') {
-            // axios.post(discordKey, { content: message, embeds: [{ color, title: 'abc' }] })
             const mdMessage = makeBoldForDiscord(message);
             axios.post(discordKey, { embeds: [{ color, description: mdMessage }] })
                 .catch((error) => {
