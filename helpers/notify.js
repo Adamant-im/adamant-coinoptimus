@@ -85,9 +85,27 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
         discord_notify;
 
       if (discordKeys.length) {
+        let color;
+        switch (type) {
+          case ('error'):
+            color = '16711680';
+            break;
+          case ('warn'):
+            color = '16776960';
+            break;
+          case ('info'):
+            color = '65280';
+            break;
+          case ('log'):
+            color = '16777215';
+            break;
+        }
+
         discordKeys.forEach((discordKey) => {
           if (typeof discordKey === 'string') {
-            axios.post(discordKey, { content: message })
+            // axios.post(discordKey, { content: message, embeds: [{ color, title: 'abc' }] })
+            const mdMessage = makeBoldForDiscord(message);
+            axios.post(discordKey, { embeds: [{ color, description: mdMessage }] })
                 .catch((error) => {
                   log.log(`Request to Discord with message ${message} failed. ${error}.`);
                 });
@@ -121,4 +139,8 @@ function makeBoldForMarkdown(text) {
 
 function makeBoldForSlack(text) {
   return doubleAsterisksToSingle(text);
+}
+
+function makeBoldForDiscord(text) {
+  return singleAsteriskToDouble(text);
 }
