@@ -15,6 +15,20 @@ const {
   discord_notify_priority = [],
 } = config;
 
+const slackColors = {
+  'error': '#FF0000',
+  'warn': '#FFFF00',
+  'info': '#00FF00',
+  'log': '#FFFFFF',
+};
+
+const discordColors = {
+  'error': '16711680',
+  'warn': '16776960',
+  'info': '65280',
+  'log': '16777215',
+};
+
 module.exports = (messageText, type, silent_mode = false, isPriority = false) => {
   try {
     const prefix = isPriority ? '[Attention] ' : '';
@@ -28,26 +42,10 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
         slack;
 
       if (slackKeys.length) {
-        let color;
-        switch (type) {
-          case ('error'):
-            color = '#FF0000';
-            break;
-          case ('warn'):
-            color = '#FFFF00';
-            break;
-          case ('info'):
-            color = '#00FF00';
-            break;
-          case ('log'):
-            color = '#FFFFFF';
-            break;
-        }
-
         const params = {
           'attachments': [{
             'fallback': message,
-            'color': color,
+            'color': slackColors[type],
             'text': makeBoldForSlack(message),
             'mrkdwn_in': ['text'],
           }],
@@ -85,9 +83,17 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
         discord_notify;
 
       if (discordKeys.length) {
+        const params = {
+          embeds: [
+            {
+              color: discordColors[type],
+              description: makeBoldForDiscord(message),
+            },
+          ],
+        };
         discordKeys.forEach((discordKey) => {
           if (typeof discordKey === 'string') {
-            axios.post(discordKey, { content: message })
+            axios.post(discordKey, params)
                 .catch((error) => {
                   log.log(`Request to Discord with message ${message} failed. ${error}.`);
                 });
@@ -121,4 +127,8 @@ function makeBoldForMarkdown(text) {
 
 function makeBoldForSlack(text) {
   return doubleAsterisksToSingle(text);
+}
+
+function makeBoldForDiscord(text) {
+  return singleAsteriskToDouble(text);
 }
