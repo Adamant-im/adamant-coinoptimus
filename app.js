@@ -4,6 +4,7 @@ const checker = require('./modules/checkerTransactions');
 const doClearDB = process.argv.includes('clear_db');
 const config = require('./modules/configReader');
 const txParser = require('./modules/incomingTxsParser');
+const healthApi = require('./modules/healthApi');
 
 // Socket connection
 const api = require('./modules/api');
@@ -12,6 +13,7 @@ api.socket.initSocket({ socket: config.socket, wsType: config.ws_type, onNewMess
 setTimeout(init, 5000);
 
 function init() {
+  healthApi.startServer();
   require('./server');
   try {
     if (doClearDB) {

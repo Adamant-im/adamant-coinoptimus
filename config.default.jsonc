@@ -104,6 +104,12 @@
   **/
   "debug_api": false,
 
+  /**
+    Port for checking if bot is running.
+    Allows to check if bot is running with http://ip:port/ping
+  **/
+  "health_api": false,
+
   /** Minimal amount of USDT to confirm buy/sell/fill commands **/
   "amount_to_confirm_usd": 100
 }
