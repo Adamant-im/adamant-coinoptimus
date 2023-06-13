@@ -258,6 +258,34 @@ module.exports = function() {
     },
 
     /**
+     * Retrieve a specific active order by order ID
+     * @param {Number} orderId Example: 119354495120
+     * @returns {Array}
+     * https://docs.bitfinex.com/reference/rest-auth-retrieve-orders
+     */
+    getOrder(orderId) {
+      const data = {
+        id: [orderId],
+      };
+
+      return protectedRequest('/auth/r/orders', data, 'post');
+    },
+
+    /**
+     * Retrieve a specific closed/cancelled order by order ID
+     * @param {Number} orderId Example: 119354495120
+     * @returns {Array}
+     * https://docs.bitfinex.com/reference/rest-auth-orders-history
+     */
+    getOrderHist(orderId) {
+      const data = {
+        id: [orderId],
+      };
+
+      return protectedRequest('/auth/r/orders/hist', data, 'post');
+    },
+
+    /**
      * Submit an Order
      * @param {String} symbol Like 'BTCUSD'
      * @param {Number} amount Amount of order (positive for buy, negative for sell)
