@@ -221,24 +221,6 @@ module.exports = function() {
     },
 
     /**
-     * Transfer funds between account types (wallets). This endpoint can also be used to convert USDT to USDT0 for derivatives trading.
-     * @param {String} currency
-     * @param {String} from
-     * @param {String} to
-     * @param {String} amount
-     * Additionally: currency_to, email_dst, user_id_dst, tfaToken
-     * https://docs.bitfinex.com/reference/rest-auth-transfer
-     */
-    transferFunds(currency, from, to, amount) {
-      return protectedRequest('/auth/w/transfer', {
-        currency,
-        from,
-        to,
-        amount: amount.toString(),
-      }, 'post');
-    },
-
-    /**
      * Get account wallet balances
      * @return {Array}
      * https://docs.bitfinex.com/reference/rest-auth-wallets
@@ -399,48 +381,6 @@ module.exports = function() {
      */
     getFees() {
       return protectedRequest('/auth/r/summary', {}, 'post');
-    },
-
-    /**
-     * View your past deposits/withdrawals. Currency can be specified to retrieve movements specific to that currency.
-     * @param {String} coin In Bitfinex format. UST for USDT.
-     * Additionally: start, end, limit
-     * @returns {Promise<Object>}
-     * https://docs.bitfinex.com/reference/rest-auth-movements
-     */
-    getTransfersHistory(coin) {
-      const data = {};
-
-      if (coin) {
-        data.currency = coin;
-      }
-
-      return protectedRequest('/auth/r/movements/hist', data, 'post');
-    },
-
-    /**
-     * Make a withdrawal
-     * @param { String } currency Not used. See method.
-     * @param { String } address Destination address
-     * @param { String } amount Amount of Withdrawal. It does't includes a fee by default.
-     * @param { String } method Method of withdrawal. For an up-to-date mapping of methods and their respective currencies see: pub:map:tx:method *(methods should be added to the post body in lower case)
-     * @param { String } wallet Select the wallet from which to transfer (exchange, margin, funding (can also use the old labels which are exchange, trading and deposit respectively))
-     * @param { Number } fee_deduct Set to 1 to deduct the withdrawal fee from the withdrawal amount
-     * @param { String } payment_id Specify a tag/memo/etc
-     * https://docs.bitfinex.com/reference/rest-auth-withdraw
-     */
-    addWithdrawal(currency, address, amount, method, wallet = 'exchange', fee_deduct = 0, payment_id) {
-      const data = {
-        wallet,
-        method: method?.toLowerCase(),
-        amount: amount?.toString(),
-        address,
-        fee_deduct,
-      };
-      if (payment_id) {
-        data.payment_id = payment_id;
-      }
-      return protectedRequest('/auth/w/withdraw', data, 'post');
     },
   };
 
