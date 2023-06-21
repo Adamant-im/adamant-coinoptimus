@@ -512,7 +512,7 @@ module.exports = {
       }
 
       // Check balances
-      const balances = await isEnoughCoins(config.coin1, config.coin2, coin1Amount, coin2Amount, type, index);
+      const balances = await isEnoughCoins(config.coin1, config.coin2, coin1Amount, coin2Amount, type, index, price);
       if (!balances.result) {
         order = order || newOrder;
 
@@ -587,11 +587,12 @@ module.exports = {
  * @param {Number} amount2 Amount in coin2 (quote)
  * @param {String} type 'buy' or 'sell'
  * @param {Number} ladderIndex Ladder order index, for logging only
+ * @param {Number} price Ladder order price, for logging only
  * @returns {Object<Boolean, String>}
  *  result: if enough funds to place order
  *  message: error message
  */
-async function isEnoughCoins(coin1, coin2, amount1, amount2, type, ladderIndex) {
+async function isEnoughCoins(coin1, coin2, amount1, amount2, type, ladderIndex, price) {
   const coin1Decimals = orderUtils.parseMarket(config.pair).coin1Decimals;
   const coin2Decimals = orderUtils.parseMarket(config.pair).coin2Decimals;
 
@@ -609,11 +610,11 @@ async function isEnoughCoins(coin1, coin2, amount1, amount2, type, ladderIndex) 
       balance2freezed = balances.filter((crypto) => crypto.code === coin2)[0]?.freezed || 0;
 
       if ((!balance1free || balance1free < amount1) && type === 'sell') {
-        output = `Not enough balance to place ${amount1.toFixed(coin1Decimals)} ${coin1} ${type} ld-order with ${ladderIndex} index. Free: ${balance1free.toFixed(coin1Decimals)} ${coin1}, frozen: ${balance1freezed.toFixed(coin1Decimals)} ${coin1}.`;
+        output = `Not enough balance to place ${amount1.toFixed(coin1Decimals)} ${coin1} @${price} ${config.coin2} ${type} ld-order with ${ladderIndex} index. Free: ${balance1free.toFixed(coin1Decimals)} ${coin1}, frozen: ${balance1freezed.toFixed(coin1Decimals)} ${coin1}.`;
         isBalanceEnough = false;
       }
       if ((!balance2free || balance2free < amount2) && type === 'buy') {
-        output = `Not enough balance to place ${amount2.toFixed(coin2Decimals)} ${coin2} ${type} ld-order with ${ladderIndex} index. Free: ${balance2free.toFixed(coin2Decimals)} ${coin2}, frozen: ${balance2freezed.toFixed(coin2Decimals)} ${coin2}.`;
+        output = `Not enough balance to place ${amount2.toFixed(coin2Decimals)} ${coin2} @${price} ${config.coin2} ${type} ld-order with ${ladderIndex} index. Free: ${balance2free.toFixed(coin2Decimals)} ${coin2}, frozen: ${balance2freezed.toFixed(coin2Decimals)} ${coin2}.`;
         isBalanceEnough = false;
       }
 
