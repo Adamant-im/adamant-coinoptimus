@@ -1,13 +1,13 @@
-ADAMANT CoinOptimus is free self-hosted cryptocurrency trade bot.
+ADAMANT CoinOptimus is a free self-hosted cryptocurrency trade bot.
 
 # For whom
 
 CoinOptimus targets:
 
-* Non-professional traders, who doesn't require comprehensive set up and analyze tools
-* Traders who don't want to trust third party tools — CoinOptimus is self-hosted
+* Non-professional traders who don't require comprehensive setup and analysis tools
+* Traders who don't want to trust third-party tools — CoinOptimus is self-hosted
 * Crypto enthusiasts who trade from time to time and want to automate some parts
-* Crypto project owners, market makers, exchanges: with ladder trade strategy, the bot fills order book/ depth/ liquidity
+* Crypto project owners, market makers, and exchanges: with the ladder trade strategy, the bot fills order books/ depth/ liquidity
 
 # Features
 
@@ -18,14 +18,15 @@ CoinOptimus targets:
 * Optimal ladder/grid trade strategy
 * Managed with your commands using ADAMANT Messenger
 * Commands include placing orders, getting user and market info
+* Notifications to ADAMANT Messenger, Slack, and Discord
 
 # How CoinOptimus works
 
-CoinOptimus is a software written on Node.js and constantly running on your server/VPS. First you set up a config: what exchange to trade and what pair. It uses API keys, which you get from crypto exchange, and crypto balances on your exchange account. To manage a bot, it accepts commands. You command to run a trade strategy, and a bot places orders and run trades.
+CoinOptimus is software written on Node.js and constantly running on your server/VPS. First, you set up a config: what exchange to trade and what pair. It uses API keys, which you get from a crypto exchange, and crypto balances on your exchange account. To manage a bot, it accepts commands. You command to run a trading strategy, and a bot places orders and run trades.
 
 # Trade strategies
 
-Currently the only trade strategy implemented is Optimal ladder/grid trade strategy, when a bot places many orders to buy and sell tokens with prices starting from the spread. When closest to spread order is filled, a bot adds the same order to the opposite side, following the rule "buy lower than you sell, and sell higher than you buy". It works best on volatile market.
+Currently, the only trade strategy implemented is the Optimal ladder/grid trade strategy, when a bot places many orders to buy and sell tokens with prices starting from the spread. When the closest to spread order is filled, a bot adds the same order to the opposite side, following the rule "buy lower than you sell, and sell higher than you buy". It works best in a volatile market.
 
 # Supported exchanges
 
@@ -60,7 +61,7 @@ cp config.default.jsonc config.jsonc
 nano config.jsonc
 ```
 
-Parameters: see comments in config file.
+Parameters: see comments in the config file.
 
 ## Launching
 
