@@ -1221,16 +1221,59 @@ async function getOrdersInfo(accountNo = 0, tx = {}, pair) {
 }
 
 /**
+ * Get details for open orders of specific type for accountNo
+ * @param {Number} accountNo 0 is for the first trade account, 1 is for the second
+ * @param {Object} tx Command Tx info
+ * @param {String} pair Trading pair
+ * @param {String} type Type of orders to list
+ * @param {Boolean} fullInfo Show full order info. Probably there will be line breaks and not convenient to read.
+ * @returns List of open orders of specific type
+ */
+async function getOrdersDetails(accountNo = 0, tx = {}, pair, type, fullInfo) {
+  let output = '';
+  const pairObj = orderUtils.parseMarket(pair);
+
+  const ordersByType = (await orderStats.ordersByType(pairObj.pair))[type]?.allOrders;
+
+  if (ordersByType?.length) {
+    output = `${config.exchangeName} ${type}-orders for ${pairObj.pair} pair: ${ordersByType.length}.\n`;
+
+    ordersByType.sort((a, b) => b.price - a.price);
+
+    for (const order of ordersByType) {
+      output += '`';
+
+      if (type === 'ld') {
+        output += `${utils.padTo2Digits(order.ladderIndex)} `;
+      }
+
+      output += `${order.type} ${order.coin1Amount?.toFixed(pairObj.coin1Decimals)} ${order.coin1} @${order.price?.toFixed(pairObj.coin2Decimals)} ${order.coin2} for ${+order.coin2Amount?.toFixed(pairObj.coin2Decimals)} ${order.coin2}`;
+
+      if (fullInfo) {
+        output += ` ${utils.formatDate(new Date(order.date))}`;
+      }
+
+      if (type === 'ld') {
+        output += ` ${order.ladderState}`;
+      }
+
+      output += '`\n';
+    }
+  } else {
+    output = `No ${type}-orders opened on ${config.exchangeName} for ${pairObj.pair} pair.`;
+  }
+
+  return output;
+}
+
+/**
  * Get open orders details
- * @param {Object} params Includes optional trade pair
+ * @param {Object} params Optional trade pair and type of orders
  * @param {Object} tx Command Tx info
  * @returns Notification messages
  */
 async function orders(params, tx = {}) {
-  let pair = params[0];
-  if (!pair) {
-    pair = config.pair;
-  }
+  const pair = params[0] || config.pair;
 
   if (pair.indexOf('/') === -1) {
     return {
@@ -1240,7 +1283,26 @@ async function orders(params, tx = {}) {
     };
   }
 
-  const account0Orders = await getOrdersInfo(0, tx, pair);
+  const detailsType = params[1]?.toLowerCase();
+
+  let account0Orders;
+
+  if (detailsType) {
+    if (!Object.keys(orderCollector.orderPurposes).includes(detailsType)) {
+      return {
+        msgNotify: '',
+        msgSendBack: `Wrong order type '${detailsType}'. Try */orders ${config.pair} man*.`,
+        notifyType: 'log',
+      };
+    }
+
+    const fullInfo = params[2]?.toLowerCase() === 'full' ? true : false;
+
+    account0Orders = await getOrdersDetails(0, tx, pair, detailsType, fullInfo);
+  } else {
+    account0Orders = await getOrdersInfo(0, tx, pair);
+  }
+
   const output = account0Orders;
 
   return {

@@ -42,7 +42,7 @@ module.exports = {
         isProcessed: false,
         pair: pair || config.pair,
         exchange: config.exchange,
-        isSecondAccountOrder: api ? true : { $ne: true },
+        isSecondAccountOrder: api?.isSecondAccount ? true : { $ne: true },
       });
 
       dbOrders = await orderUtils.updateOrders(dbOrders, pair, utils.getModuleName(module.id), false, api);
