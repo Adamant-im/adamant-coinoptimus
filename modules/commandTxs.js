@@ -134,7 +134,7 @@ async function start(params) {
   if (!['ld'].includes(strategy)) {
     return {
       msgNotify: '',
-      msgSendBack: `Indicate strategy, _ld_ for Ladder/ Grid trading. Example: */start ld*.`,
+      msgSendBack: 'Indicate strategy, _ld_ for Ladder/ Grid trading. Example: */start ld*.',
       notifyType: 'log',
     };
   }
@@ -313,7 +313,7 @@ function stop() {
     msgSendBack = `Trading on ${config.pair} pair stopped.`;
   } else {
     msgNotify = '';
-    msgSendBack = `Trading is not active.`;
+    msgSendBack = 'Trading is not active.';
   }
 
   tradeParams.co_isActive = false;
@@ -338,8 +338,8 @@ async function enable(params, {}, isWebApi = false) {
     const option = params[0]?.toLowerCase();
 
     if (!['sample_option'].includes(option)) {
-      msgSendBack = `Indicate option:\n\n_sample_option_ for Sample option.`;
-      msgSendBack += `\n\nExample: */enable sample_option*.`;
+      msgSendBack = 'Indicate option:\n\n_sample_option_ for Sample option.';
+      msgSendBack += '\n\nExample: */enable sample_option*.';
       return {
         msgNotify: '',
         msgSendBack,
@@ -355,8 +355,8 @@ async function enable(params, {}, isWebApi = false) {
     msgNotify = `${config.notifyName} enabled ${optionsString}${infoString}.`;
     msgSendBack = `${optionsString} is enabled${infoString}.`;
     if (!tradeParams.co_isActive) {
-      msgNotify += ` Trading is not started yet.`;
-      msgSendBack += ` To start Trading, type */start*.`;
+      msgNotify += ' Trading is not started yet.';
+      msgSendBack += ' To start Trading, type */start*.';
     }
   } catch (e) {
     log.error(`Error in enable() of ${utils.getModuleName(module.id)} module: ` + e);
@@ -381,8 +381,8 @@ function disable(params) {
   const option = params[0]?.toLowerCase();
 
   if (!['sample_option'].includes(option)) {
-    msgSendBack = `Indicate option:\n\n_sample_option_ for Sample option.`;
-    msgSendBack += `\n\nExample: */enable sample_option*.`;
+    msgSendBack = 'Indicate option:\n\n_sample_option_ for Sample option.';
+    msgSendBack += '\n\nExample: */enable sample_option*.';
     return {
       msgNotify: '',
       msgSendBack,
@@ -397,8 +397,8 @@ function disable(params) {
   msgNotify = `${config.notifyName} disabled ${optionsString}.`;
   msgSendBack = `${optionsString} is disabled.`;
   if (tradeParams.co_isActive) {
-    msgNotify += ` Trading is still active.`;
-    msgSendBack += ` Trading is still active—to stop it, type */stop*.`;
+    msgNotify += ' Trading is still active.';
+    msgSendBack += ' Trading is still active—to stop it, type */stop*.';
   }
 
   return {
@@ -449,7 +449,7 @@ async function clear(params) {
       }
       if (['unk'].includes(param.toLowerCase())) {
         purposes = 'unk';
-        purposeString = `unknown`;
+        purposeString = 'unknown';
       }
 
       Object.keys(orderPurposes).forEach((purpose) => {
@@ -498,7 +498,7 @@ async function clear(params) {
 
     if (!purposes) {
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: 'Specify type of orders to clear. F. e., */clear mm sell*.',
         notifyType: 'log',
       };
@@ -522,7 +522,7 @@ async function clear(params) {
     output = clearedInfo.logMessage;
 
     return {
-      msgNotify: ``,
+      msgNotify: '',
       msgSendBack: output,
       notifyType: 'log',
     };
@@ -591,7 +591,7 @@ function getBuySellParams(params, type) {
       }
     } catch (e) {
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: 'Wrong arguments. Command works like this: */sell ADM/BTC amount=200 price=market*.',
         notifyType: 'log',
       };
@@ -600,7 +600,7 @@ function getBuySellParams(params, type) {
 
   if (params.length < 1) {
     return {
-      msgNotify: ``,
+      msgNotify: '',
       msgSendBack: 'Wrong arguments. Command works like this: */sell ADM/BTC amount=200 price=market*.',
       notifyType: 'log',
     };
@@ -608,7 +608,7 @@ function getBuySellParams(params, type) {
 
   if ((quote && amount) || (!quote && !amount)) {
     return {
-      msgNotify: ``,
+      msgNotify: '',
       msgSendBack: 'You should specify amount _or_ quote, and not both of them.',
       notifyType: 'log',
     };
@@ -620,7 +620,7 @@ function getBuySellParams(params, type) {
   if (((!price || price === Infinity || price <= 0) && (price !== 'market')) || (!amountOrQuote || amountOrQuote === Infinity || amountOrQuote <= 0)) {
     output = `Incorrect params: ${amountOrQuote}, ${price}. Command works like this: */sell ADM/BTC amount=200 price=market*.`;
     return {
-      msgNotify: ``,
+      msgNotify: '',
       msgSendBack: `${output}`,
       notifyType: 'log',
     };
@@ -628,7 +628,7 @@ function getBuySellParams(params, type) {
 
   if (price === 'market' && !traderapi.features().placeMarketOrder) {
     return {
-      msgNotify: ``,
+      msgNotify: '',
       msgSendBack: `Placing Market orders on ${config.exchangeName} via API is not supported.`,
       notifyType: 'log',
     };
@@ -637,9 +637,9 @@ function getBuySellParams(params, type) {
   // When Market order, buy should pass quote parameter, when sell — amount
   if (price === 'market' && !traderapi.features()?.allowAmountForMarketBuy) {
     if ((type === 'buy' && !quote) || ((type === 'sell' && !amount))) {
-      output = `When placing Market order, buy should follow with _quote_, sell with _amount_. Command works like this: */sell ADM/BTC amount=200 price=market*.`;
+      output = 'When placing Market order, buy should follow with _quote_, sell with _amount_. Command works like this: */sell ADM/BTC amount=200 price=market*.';
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: `${output}`,
         notifyType: 'log',
       };
@@ -651,7 +651,7 @@ function getBuySellParams(params, type) {
     if (!amount) {
       output = `When placing Market order on ${config.exchangeName}, _amount_ is necessary. Command works like this: */sell ADM/BTC amount=200 price=market*.`;
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: `${output}`,
         notifyType: 'log',
       };
@@ -700,7 +700,7 @@ function getBuySellParams(params, type) {
         msgSendBack += ` **Warning: ${type} price is ${Math.abs(priceDifference).toFixed(0)}% ${marketPrice > price ? 'less' : 'greater'} than market**.`;
       }
     }
-    msgSendBack += ` Confirm with **/y** command or ignore.`;
+    msgSendBack += ' Confirm with **/y** command or ignore.';
 
     return {
       msgSendBack,
@@ -781,16 +781,16 @@ function params() {
  */
 function help({}, {}, commandFix) {
 
-  let output = `I am **online** and ready to trade.`;
-  output += ` See command reference on https://github.com/Adamant-im/adamant-coinoptimus/wiki`;
-  output += `\nHappy trading!`;
+  let output = 'I am **online** and ready to trade.';
+  output += ' See command reference on https://github.com/Adamant-im/adamant-coinoptimus/wiki';
+  output += '\nHappy trading!';
 
   if (commandFix === 'help') {
-    output += `\n\nNote: commands starts with slash **/**. Example: **/help**.`;
+    output += '\n\nNote: commands starts with slash **/**. Example: **/help**.';
   }
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: `${output}`,
     notifyType: 'log',
   };
@@ -841,7 +841,7 @@ async function rates(params) {
       if (!pair) {
         output = `I can’t get rates for *${coin1} from Infoservice*. Try */rates ADM*.`;
         return {
-          msgNotify: ``,
+          msgNotify: '',
           msgSendBack: output,
           notifyType: 'log',
         };
@@ -869,7 +869,7 @@ async function rates(params) {
   }
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: output,
     notifyType: 'log',
   };
@@ -887,7 +887,7 @@ async function calc(params, tx, isWebApi = false) {
 
     if (params.length !== 4) {
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: 'Wrong arguments. Command works like this: */calc 2.05 BTC in USDT*.',
         notifyType: 'log',
       };
@@ -902,7 +902,7 @@ async function calc(params, tx, isWebApi = false) {
     if (!utils.isPositiveOrZeroNumber(amount)) {
       output = `Wrong amount: _${params[0]}_. Command works like this: */calc 2.05 BTC in USD*.`;
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: `${output}`,
         notifyType: 'log',
       };
@@ -920,7 +920,7 @@ async function calc(params, tx, isWebApi = false) {
       if (!utils.isPositiveOrZeroNumber(result)) {
         output = `Unable to calc _${params[0]}_ ${inCurrency} in ${outCurrency}.`;
         return {
-          msgNotify: ``,
+          msgNotify: '',
           msgSendBack: `${output}`,
           notifyType: 'log',
         };
@@ -960,7 +960,7 @@ async function calc(params, tx, isWebApi = false) {
   }
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: output,
     notifyType: 'log',
   };
@@ -978,7 +978,7 @@ async function deposit(params, tx = {}) {
     if (!params[0] || params[0].indexOf('/') !== -1) {
       output = 'Please specify coin to get a deposit address. F. e., */deposit ADM*.';
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: `${output}`,
         notifyType: 'log',
       };
@@ -986,8 +986,8 @@ async function deposit(params, tx = {}) {
 
     if (!traderapi.features().getDepositAddress) {
       return {
-        msgNotify: ``,
-        msgSendBack: `The exchange doesn't support receiving a deposit address.`,
+        msgNotify: '',
+        msgSendBack: 'The exchange doesn\'t support receiving a deposit address.',
         notifyType: 'log',
       };
     }
@@ -1009,7 +1009,7 @@ async function deposit(params, tx = {}) {
   }
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: output,
     notifyType: 'log',
   };
@@ -1031,7 +1031,7 @@ async function stats(params) {
     if (pair.indexOf('/') === -1) {
       output = `Wrong pair '${pair}'. Try */stats ${config.pair}*.`;
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: `${output}`,
         notifyType: 'log',
       };
@@ -1058,7 +1058,7 @@ async function stats(params) {
       if (exchangeRates.low && exchangeRates.high) {
         output += `\nLow: ${exchangeRates.low.toFixed(coin2Decimals)}, high: ${exchangeRates.high.toFixed(coin2Decimals)}, delta: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
       } else {
-        output += `\nNo low and high rates available.`;
+        output += '\nNo low and high rates available.';
       }
       delta = exchangeRates.ask-exchangeRates.bid;
       average = (exchangeRates.ask+exchangeRates.bid)/2;
@@ -1076,7 +1076,7 @@ async function stats(params) {
   }
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: output,
     notifyType: 'log',
   };
@@ -1097,7 +1097,7 @@ async function pair(params) {
     }
     if (pair.indexOf('/') === -1) {
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: `Wrong pair '${pair}'. Try */pair ${config.pair}*.`,
         notifyType: 'log',
       };
@@ -1105,8 +1105,8 @@ async function pair(params) {
 
     if (!traderapi.features().getMarkets) {
       return {
-        msgNotify: ``,
-        msgSendBack: `The exchange doesn't support receiving market info.`,
+        msgNotify: '',
+        msgSendBack: 'The exchange doesn\'t support receiving market info.',
         notifyType: 'log',
       };
     }
@@ -1114,7 +1114,7 @@ async function pair(params) {
     const info = traderapi.marketInfo(pair);
     if (!info) {
       return {
-        msgNotify: ``,
+        msgNotify: '',
         msgSendBack: `Unable to receive ${pair} market info. Try */pair ${config.pair}*.`,
         notifyType: 'log',
       };
@@ -1127,7 +1127,7 @@ async function pair(params) {
   }
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: output,
     notifyType: 'log',
   };
@@ -1203,13 +1203,13 @@ async function getOrdersInfo(accountNo = 0, tx = {}, pair) {
   };
 
   if (ordersByType?.['all']?.allOrders?.length > 0) {
-    output += `\n\nOrders in my database:`;
+    output += '\n\nOrders in my database:';
     Object.keys(orderCollector.orderPurposes).forEach((purpose) => {
       output += `\n${orderCollector.orderPurposes[purpose]}: ${ordersByType[purpose].allOrders.length}${getDiffString(purpose)}${getAmountsString(purpose)},`;
     });
     output = utils.trimAny(output, ',') + '.';
   } else {
-    output += '\n\n' + `No open orders in my database.`;
+    output += '\n\n' + 'No open orders in my database.';
   }
 
   output += `\n\nOrders which are not in my database (Unknown orders): ${ordersByType.unkLength}${diffStringUnknownOrdersCount}.`;
@@ -1234,7 +1234,7 @@ async function orders(params, tx = {}) {
 
   if (pair.indexOf('/') === -1) {
     return {
-      msgNotify: ``,
+      msgNotify: '',
       msgSendBack: `Wrong pair '${pair}'. Try */orders ${config.pair}*.`,
       notifyType: 'log',
     };
@@ -1244,7 +1244,7 @@ async function orders(params, tx = {}) {
   const output = account0Orders;
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: output,
     notifyType: 'log',
   };
@@ -1265,7 +1265,7 @@ function balancesString(balances, caption, params) {
   const unknownCryptos = [];
 
   if (balances.length === 0) {
-    output = `All empty.`;
+    output = 'All empty.';
   } else {
     output = caption;
     balances = balances.filter((crypto) => !['totalBTC', 'totalUSD', 'totalNonCoin1BTC', 'totalNonCoin1USD'].includes(crypto.code));
@@ -1407,7 +1407,7 @@ async function balances(params, tx, user, isWebApi = false) {
   }
 
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: output,
     notifyType: 'log',
   };
@@ -1415,14 +1415,14 @@ async function balances(params, tx, user, isWebApi = false) {
 
 function version() {
   return {
-    msgNotify: ``,
+    msgNotify: '',
     msgSendBack: `I am running on _adamant-coinoptimus_ software version _${config.version}_. Revise code on ADAMANT's GitHub.`,
     notifyType: 'log',
   };
 }
 
 const aliases = {
-  b: () => (`/balances`),
+  b: () => ('/balances'),
 };
 
 const commands = {
