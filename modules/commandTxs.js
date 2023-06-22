@@ -1233,7 +1233,7 @@ async function getOrdersDetails(accountNo = 0, tx = {}, pair, type, fullInfo) {
   let output = '';
   const pairObj = orderUtils.parseMarket(pair);
 
-  const ordersByType = (await orderStats.ordersByType(pairObj.pair))[type]?.allOrders;
+  const ordersByType = (await orderStats.ordersByType(pairObj.pair, traderapi, false))[type]?.allOrders;
 
   if (ordersByType?.length) {
     output = `${config.exchangeName} ${type}-orders for ${pairObj.pair} pair: ${ordersByType.length}.\n`;
