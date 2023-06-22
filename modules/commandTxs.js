@@ -1255,6 +1255,10 @@ async function getOrdersDetails(accountNo = 0, tx = {}, pair, type, fullInfo) {
 
       if (type === 'ld') {
         output += ` ${order.ladderState}`;
+
+        if (fullInfo) {
+          output += ` ${order.ladderNotPlacedReason ? ' (' + order.ladderNotPlacedReason + ')' : ''}`;
+        }
       }
 
       output += '`\n';
@@ -1304,7 +1308,7 @@ async function orders(params, tx = {}) {
       };
     }
 
-    const fullInfo = params[2]?.toLowerCase() === 'full' ? true : false;
+    const fullInfo = params[params.length - 1]?.toLowerCase() === 'full' ? true : false;
 
     account0Orders = await getOrdersDetails(0, tx, pair, detailsType, fullInfo);
   } else {
