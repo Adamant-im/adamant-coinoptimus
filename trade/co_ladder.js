@@ -196,7 +196,7 @@ module.exports = {
               let updateStateString = updateLadderState(order, 'Missed');
               updateStateString = ` Its ${updateStateString}, it will be re-created.`;
 
-              const isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled.' : 'Ld-order with lower index is not filled.';
+              const isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled.' : `Ld-order with lower index is in ${previousOrderInitialState} state and isn't filled.`;
 
               log.warn(`Ladder: It seems ${orderInfo} is mistakenly marked as filled: ${isNotFilledViaApiString}${updateStateString}`);
               await order.save();
@@ -329,7 +329,7 @@ module.exports = {
         } else if (order.ladderState === 'To be removed') {
           reasonToClose = `Cross-type (${order.ladderCrossOrderType}) ld-order @${order.ladderCrossOrderPrice} ${config.coin2} with index ${order.ladderCrossOrderIndex} is filled for this ${order.type} ${utils.inclineNumber(order.ladderIndex)} ld-order @${order.price} ${config.coin2}`;
         } else if (order.ladderIndex < 0 || order.ladderIndex > tradeParams.mm_ladderCount - 1) {
-          reasonToClose = `Ld-order to ${order.type} @${order.price} ${config.coin2} index ${order.ladderIndex} is out of [0, ${tradeParams.mm_ladderCount - 1}] range`;
+          reasonToClose = `Index ${order.ladderIndex} of ${order.type} ld-order @${order.price} ${config.coin2} is out of [0, ${tradeParams.mm_ladderCount - 1}] range`;
         }
 
         if (reasonToClose) {
@@ -359,7 +359,7 @@ module.exports = {
     }
 
     if (toBeRemovedCount) {
-      log.log(`Ladder: Closed ${removedCount} of ${toBeRemovedCount} ld-orders in To be removed state or with out-of-range index. Total ladder orders: ${ldOrders.length}⟶${updatedLdOrders.length}.`);
+      log.log(`Ladder: Closed ${removedCount} of ${toBeRemovedCount} ld-orders in To be removed state or with out-of-range index. Total ladder orders: ${ldOrders.length} -> ${updatedLdOrders.length}.`);
     }
 
     return updatedLdOrders;
