@@ -1273,7 +1273,15 @@ async function getOrdersDetails(accountNo = 0, tx = {}, pair, type, fullInfo) {
  * @returns Notification messages
  */
 async function orders(params, tx = {}) {
-  const pair = params[0] || config.pair;
+  let detailsType;
+  let pair = params[0];
+
+  if (Object.keys(orderCollector.orderPurposes).includes(pair?.toLowerCase())) {
+    detailsType = pair; // It's an order type
+    pair = config.pair;
+  }
+
+  pair = pair || config.pair;
 
   if (pair.indexOf('/') === -1) {
     return {
@@ -1283,7 +1291,7 @@ async function orders(params, tx = {}) {
     };
   }
 
-  const detailsType = params[1]?.toLowerCase();
+  detailsType = detailsType || params[1]?.toLowerCase();
 
   let account0Orders;
 
