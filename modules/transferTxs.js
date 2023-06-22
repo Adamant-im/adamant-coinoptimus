@@ -1,5 +1,5 @@
 const notify = require('../helpers/notify');
-const config = require('./configReader');
+const config = require('./config/reader');
 const api = require('./api');
 const log = require('../helpers/log');
 

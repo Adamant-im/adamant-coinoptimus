@@ -1,7 +1,7 @@
 const constants = require('../helpers/const');
 const utils = require('../helpers/utils');
 const exchangerUtils = require('../helpers/cryptos/exchanger');
-const config = require('./configReader');
+const config = require('./config/reader');
 const log = require('../helpers/log');
 const notify = require('../helpers/notify');
 

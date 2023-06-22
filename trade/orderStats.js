@@ -1,7 +1,7 @@
 const constants = require('../helpers/const');
 const db = require('../modules/DB');
 const utils = require('../helpers/utils');
-const config = require('../modules/configReader');
+const config = require('../modules/config/reader');
 const orderUtils = require('./orderUtils');
 const log = require('../helpers/log');
 const orderPurposes = require('./orderCollector').orderPurposes;
@@ -70,4 +70,3 @@ module.exports = {
     return ordersByType;
   },
 };
-
