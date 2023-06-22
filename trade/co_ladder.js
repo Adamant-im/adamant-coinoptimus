@@ -143,7 +143,7 @@ module.exports = {
               const orderDetails = await traderapi.getOrderDetails(order._id, order.pair);
               const orderStatus = orderDetails?.status;
 
-              if (!orderStatus) {
+              if (orderStatus) {
                 isOrderFilledByApi = ['part_filled', 'filled'].includes(orderStatus);
                 isOrderNotFilledByApi = !isOrderFilledByApi;
               } else {
@@ -151,7 +151,7 @@ module.exports = {
               }
             }
 
-            if (isOrderFilledByApi || [constants.LADDER_PREVIOUS_FILLED_ORDER_STATES].includes(previousOrderInitialState)) {
+            if (isOrderFilledByApi || constants.LADDER_PREVIOUS_FILLED_ORDER_STATES.includes(previousOrderInitialState)) {
               // Verified that the order is filled
 
               maxFilledOrderIndex[type] = index;
