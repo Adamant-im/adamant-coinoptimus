@@ -46,18 +46,21 @@ try {
 
   const [coin1, coin2] = config.pair.split('/');
 
+  const file = `tradeParams_${config.exchange}.js`;
+  const fileWithPath = `./trade/settings/${file}`;
+
   config = {
     ...config,
     version,
     keyPair,
     address,
+    file,
+    fileWithPath,
     publicKey: keyPair.publicKey.toString('hex'),
-    notifyName: `${config.bot_name} (${config.address})`,
+    notifyName: `${config.bot_name} (${address})`,
     supported_exchanges: config.exchanges.join(', '),
     exchangeName: config.exchange,
     exchange: config.exchange.toLowerCase(),
-    file: `tradeParams_${config.exchange}.js`,
-    fileWithPath: `./trade/settings/${config.file}`,
     pair: config.pair.toUpperCase(),
     coin1: coin1.trim(),
     coin2: coin2.trim(),
