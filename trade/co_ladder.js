@@ -551,7 +551,7 @@ module.exports = {
 
             if (hOrder) {
               if (constants.LADDER_OPENED_STATES.includes(hOrder.ladderState)) {
-                const hOrderString = `Closing ld-order with higher ${type}-${hIndex} index to free up balances> the order `;
+                const hOrderString = ` Closing ld-order with higher ${type}-${hIndex} index to free up balances> the order`;
 
                 const updateHOrderStateString = updateLadderState(hOrder, 'To be removed');
                 const updateStateString = `${hOrderString} ${updateHOrderStateString}.`;
