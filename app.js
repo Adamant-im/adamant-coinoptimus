@@ -2,7 +2,7 @@ const notify = require('./helpers/notify');
 const db = require('./modules/DB');
 const checker = require('./modules/checkerTransactions');
 const doClearDB = process.argv.includes('clear_db');
-const config = require('./modules/configReader');
+const config = require('./modules/config/reader');
 const txParser = require('./modules/incomingTxsParser');
 
 // Socket connection

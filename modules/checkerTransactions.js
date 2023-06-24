@@ -2,7 +2,7 @@ const Store = require('./Store');
 const api = require('./api');
 const txParser = require('./incomingTxsParser');
 const log = require('../helpers/log');
-const config = require('./configReader');
+const config = require('./config/reader');
 const constants = require('../helpers/const');
 const utils = require('../helpers/utils');
 
