@@ -1,4 +1,4 @@
-const config = require('../modules/configReader');
+const config = require('../modules/config/reader');
 
 const fs = require('fs');
 if (!fs.existsSync('./logs')) {
