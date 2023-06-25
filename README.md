@@ -1,5 +1,9 @@
 ADAMANT CoinOptimus is a free self-hosted cryptocurrency trade bot.
 
+The bot trades with a 3% price step with Ladder/Grid trading strategy:
+
+![CoinOptimus Trades on a chart](./assets/trades-on-a-chart.png)
+
 # For whom
 
 CoinOptimus targets:
@@ -27,6 +31,10 @@ CoinOptimus is software written on Node.js and constantly running on your server
 # Trade strategies
 
 Currently, the only trade strategy implemented is the Optimal ladder/grid trade strategy, when a bot places many orders to buy and sell tokens with prices starting from the spread. When the closest to spread order is filled, a bot adds the same order to the opposite side, following the rule "buy lower than you sell, and sell higher than you buy". It works best in a volatile market.
+
+See trades history example with a 3% price step:
+
+![CoinOptimus grid-placed orders](./assets/placed-orders.png)
 
 # Supported exchanges
 
