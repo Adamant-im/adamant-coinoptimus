@@ -91,11 +91,11 @@ module.exports = {
       },
       health: {
         type: Boolean,
-        default: true,
+        default: false,
       },
       debug: {
         type: Boolean,
-        default: true,
+        default: false,
       },
     },
   },

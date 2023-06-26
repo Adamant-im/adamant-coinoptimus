@@ -14,7 +14,7 @@ setTimeout(init, 5000);
 
 function init() {
   try {
-    if (config.api?.port) {
+    if (config.api.port) {
       initApi();
     }
 
