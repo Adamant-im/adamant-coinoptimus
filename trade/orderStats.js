@@ -1,7 +1,7 @@
 const constants = require('../helpers/const');
 const db = require('../modules/DB');
 const utils = require('../helpers/utils');
-const config = require('../modules/config/reader');
+const config = require('../modules/configReader');
 const orderUtils = require('./orderUtils');
 const log = require('../helpers/log');
 const orderPurposes = require('./orderCollector').orderPurposes;
@@ -31,10 +31,9 @@ module.exports = {
    * Used for /orders command
    * @param {String} pair Filter order trade pair
    * @param {Object} api If we should use second account in case of 2-keys trading
-   * @param {Boolean} hideNotOpened Hide ld-order in states as Not opened, Filled, Cancelled (default)
    * @return {Object} Aggregated info
    */
-  async ordersByType(pair, api, hideNotOpened = true) {
+  async ordersByType(pair, api) {
     const ordersByType = { };
 
     try {
@@ -43,10 +42,10 @@ module.exports = {
         isProcessed: false,
         pair: pair || config.pair,
         exchange: config.exchange,
-        isSecondAccountOrder: api?.isSecondAccount ? true : { $ne: true },
+        isSecondAccountOrder: api ? true : { $ne: true },
       });
 
-      dbOrders = await orderUtils.updateOrders(dbOrders, pair, utils.getModuleName(module.id), false, api, hideNotOpened);
+      dbOrders = await orderUtils.updateOrders(dbOrders, pair, utils.getModuleName(module.id), false, api);
       if (dbOrders && dbOrders[0]) {
         Object.keys(orderPurposes).forEach((purpose) => {
           ordersByType[purpose] = { };
@@ -71,3 +70,4 @@ module.exports = {
     return ordersByType;
   },
 };
+

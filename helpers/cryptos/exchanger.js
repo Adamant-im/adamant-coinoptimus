@@ -1,4 +1,4 @@
-const config = require('../../modules/config/reader');
+const config = require('../../modules/configReader');
 const log = require('../log');
 const constants = require('../const');
 const utils = require('../utils');

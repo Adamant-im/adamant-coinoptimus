@@ -1,7 +1,7 @@
 const api = require('../../modules/api');
 const log = require('../../helpers/log');
 const constants = require('../const');
-const config = require('../../modules/config/reader');
+const config = require('../../modules/configReader');
 const utils = require('../utils');
 
 const baseCoin = require('./baseCoin');

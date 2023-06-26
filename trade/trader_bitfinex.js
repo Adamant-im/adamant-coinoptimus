@@ -486,11 +486,16 @@ module.exports = (
         createDepositAddressWithWebsiteOnly: false,
         selfTradeProhibited: true,
         getFundHistory: true,
-        getFundHistoryImplemented: false,
+        getFundHistoryImplemented: true,
         allowAmountForMarketBuy: true,
         amountForMarketOrderNecessary: true,
         orderNumberLimit: 100,
+        accountTypes: ['exchange', 'margin', 'funding'], // Bitfinex have account types (wallets)
         supportCoinNetworks: true,
+        getWithdrawalById: false,
+        withdrawAccountType: undefined, // Withdrawals available from any account
+        withdrawalSuccessNote: 'Depending on your account settings, Bitfinex may email you to approve the withdrawal',
+        supportTransferBetweenAccounts: true,
       };
     },
 
@@ -624,99 +629,6 @@ module.exports = (
         }
       } catch (e) {
         log.warn(`Error while processing getOpenOrders(${paramString}) request: ${e}`);
-        return undefined;
-      }
-    },
-
-    /**
-     * Get specific order details
-     * What's important is to understand the order was filled or closed by other reason
-     * status: unknown, new, filled, part_filled, cancelled
-     * @param {String} orderId Example: 119354495120
-     * @param {String} pair In classic format as BTC/USDT. For logging purposes.
-     * @returns {Promise<{}|undefined>}
-     */
-    async getOrderDetails(orderId, pair) {
-      const paramString = `orderId: ${orderId}, pair: ${pair}`;
-
-      const pair_ = formatPairName(pair);
-      if (!pair_) {
-        return undefined;
-      }
-
-      let data;
-
-      try {
-        // First try to search for an active order
-        data = await bitfinexApiClient.getOrder(+orderId);
-
-        // If active order is not found, search for a closed/cancelled order
-        if (data.length === 0) {
-          data = await bitfinexApiClient.getOrderHist(+orderId);
-        }
-      } catch (e) {
-        log.warn(`API request getOrderDetails(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${e}`);
-        return undefined;
-      }
-
-      try {
-        if (data.length) {
-          let orderStatus;
-          let orderType;
-
-          const [order] = data;
-
-          // Available order statuses:
-          // https://docs.bitfinex.com/docs/abbreviations-glossary#order-status
-          orderStatus = order[13];
-          if (orderStatus === 'ACTIVE') {
-            orderStatus = 'new';
-          } else if (orderStatus.includes('EXECUTED')) {
-            orderStatus = 'filled';
-          } else if (orderStatus.includes('PARTIALLY FILLED')) {
-            orderStatus = 'part_filled';
-          } else {
-            orderStatus = 'cancelled';
-          }
-
-          if (order[8].includes('MARKET')) {
-            orderType = 'market';
-          } else if (order[8].includes('LIMIT')) {
-            orderType = 'limit';
-          }
-
-          const result = {
-            orderId: order[0]?.toString(),
-            side: +order[6] > 0 ? 'buy' : 'sell',
-            type: orderType,
-            tradesCount: undefined, // Bitfinex doesn't provide trades
-            price: +order[16],
-            amount: Math.abs(+order[7]), // AMOUNT_ORIG
-            amountExecuted: Math.abs(order[7]) - Math.abs(order[6]), // AMOUNT_ORIG - AMOUNT / In coin1
-            amountLeft: Math.abs(order[6]), // AMOUNT
-            volume: Math.abs(+order[7]) * +order[16], // AMOUNT_ORIG * PRICE
-            volumeExecuted: +order[16] * (Math.abs(order[7]) - Math.abs(order[6])), // PRICE * AMOUNT_EXECUTED / In coin2
-            status: orderStatus,
-            timestamp: order[4],
-            updateTimestamp: order[5],
-            pairPlain: order[3], // in Bitfinex format like 'tBTCUSD'
-            pairReadable: pair_.pairReadable, // Better to deformat pairPlain, but easier to assume we've got correct pair_ param
-            totalFeeInCoin2: undefined, // Bitfinex doesn't provide fee info
-          };
-
-          return result;
-        } else {
-          // Order endpoints at Bitfinex seem not to return any errors
-          const errorMessage = 'No details.';
-          log.log(`Unable to get order ${orderId} details: ${errorMessage}.`);
-
-          return {
-            orderId,
-            status: 'unknown', // Order doesn't exist or Wrong orderId
-          };
-        }
-      } catch (e) {
-        log.warn(`Error while processing getOrderDetails(${paramString}) request: ${data}. ${e}`);
         return undefined;
       }
     },
@@ -1187,6 +1099,208 @@ module.exports = (
       }
 
       return result;
+    },
+
+    /**
+     * Transfer funds between exchange account types. See features().accountTypes[].
+     * @param {String} coin Coin to transfer
+     * @param {String} from Account to transfer from
+     * @param {String} to Account to transfer to
+     * @param {Number} amount Quantity to transfer
+     * @returns {Object<Boolean, String>} Request results
+     */
+    async transfer(coin, from, to, amount) {
+      const paramString = `coin: ${coin}, from: ${from}, to: ${to}, amount: ${amount}`;
+
+      try {
+        const coinApiSymbol = getCurrencies(coin)?.apiSymbol;
+        const result = await bitfinexApiClient.transferFunds(coinApiSymbol, from, to, amount);
+
+        if (result && result[0] !== 'error') {
+          const transfer = result[4];
+          if (transfer) {
+            log.log(`Transferred ${amount} ${coin} from ${from}-account to ${to}-account.`);
+            return {
+              success: true,
+              error: null,
+            };
+          }
+        } else {
+          const errorMessage = `${result?.[0]} ${result?.[1]}> ${result?.[2]}`;
+          log.warn(`Unable to transfer funds from ${from}-account to ${to}-account: ${errorMessage}.`);
+          return {
+            success: false,
+            error: errorMessage,
+          };
+        }
+      } catch (e) {
+        log.warn(`API request transfer(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${e}`);
+        return {
+          success: false,
+          error: e,
+        };
+      }
+    },
+
+    /**
+     * Get transfers (deposits/withdrawals) history
+     * @param {String} coin Filter by coin, optional
+     * @param {Number} limit Limit records, optional
+     * @returns {Promise<{success: boolean, error: string}|{result: *[], success: boolean}>}
+     */
+    async getTransfersHistory(coin, limit) {
+      const paramString = `coin: ${coin}, limit: ${limit}`;
+
+      try {
+        const coinApiSymbol = getCurrencies(coin)?.apiSymbol;
+        const records = await bitfinexApiClient.getTransfersHistory(coinApiSymbol);
+        const result = [];
+
+        if (records && records[0] !== 'error') {
+          records.forEach((record) => {
+            result.push({
+              id: record[0].toString(), // Movement identifier
+              currencySymbol: getCurrencies(record[1])?.symbol,
+              currencyName: record[2], // The extended name of the currency (ex. "BITCOIN")
+              quantity: record[12], // Amount not including fees
+              cryptoAddress: record[16],
+              fundsTransferMethodId: null,
+              cryptoAddressTag: null,
+              txId: record[20],
+              fee: Math.abs(record[13]), // Tx Fees applied
+              confirmations: null,
+              updatedAt: record[6], // Movement last updated at
+              createdAt: record[5], // Movement started at
+              status: record[9],
+              source: null,
+              accountId: null,
+              chain: null,
+              chainPlain: null,
+              userNote: record[21], // Optional personal withdraw transaction note
+            });
+          });
+
+          return {
+            success: true,
+            result,
+          };
+        } else {
+          const errorMessage = `${records?.[0]} ${records?.[1]}> ${records?.[2]}`;
+          log.warn(`Request getTransfersHistory(${paramString}) failed: ${errorMessage}`);
+
+          return {
+            success: false,
+            error: errorMessage,
+          };
+        }
+      } catch (err) {
+        log.log(`API request getTransfersHistory(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}.`);
+
+        return {
+          success: false,
+          error: err,
+        };
+      }
+    },
+
+    /**
+     * Get deposit history
+     * @param {String} coin Filter by coin, optional
+     * @param {Number} limit Limit records, optional
+     * @returns {Promise<{success: boolean, error: string}|{result: *[], success: boolean}>}
+     */
+    async getDepositHistory(coin, limit) {
+      const deposits = await this.getTransfersHistory(coin, limit);
+
+      if (deposits?.success) {
+        // Amount of funds moved (positive for deposits, negative for withdrawals)
+        deposits.result = deposits.result.filter((record) => record.quantity > 0);
+        deposits.result.slice(0, limit);
+      }
+      return deposits;
+    },
+
+    /**
+     * Get withdrawal history
+     * @param {String} coin Filter by coin, optional
+     * @param {Number} limit Limit records, optional
+     * @returns {Promise<{success: boolean, error: string}|{result: *[], success: boolean}>}
+     */
+    async getWithdrawalHistory(coin, limit) {
+      const withdrawals = await this.getTransfersHistory(coin, limit);
+
+      if (withdrawals?.success) {
+        // Amount of funds moved (positive for deposits, negative for withdrawals)
+        withdrawals.result = withdrawals.result.filter((record) => record.quantity < 0);
+        withdrawals.result.forEach((record) => record.quantity = Math.abs(record.quantity));
+        withdrawals.result = withdrawals.result.slice(0, limit);
+      }
+
+      return withdrawals;
+    },
+
+    /**
+     * Withdraw coin from Bitfinex
+     * @param { String } address Crypto address to withdraw funds to
+     * @param { Number } amount Quantity to withdraw. Fee to be added, if provided.
+     * @param { String } coin In usual format as USDT for Bitfinex's UST
+     * @param { Number } withdrawalFee Not used, it will be added by exchange
+     * @param { String } network For Bitfinex it's called 'method'
+     * @return {Promise<Object>} Withdrawal details
+     */
+    async withdraw(address, amount, coin, withdrawalFee, network) {
+      const paramString = `address: ${address}, amount: ${amount}, coin: ${coin}, withdrawalFee: ${withdrawalFee}, network: ${network}`;
+
+      const decimals = getCurrencies(coin)?.decimals || constants.DEFAULT_WITHDRAWAL_PRECISION;
+      if (decimals) amount = +amount.toFixed(decimals);
+
+      try {
+        const result = await bitfinexApiClient.addWithdrawal(null, address, amount, network);
+
+        if (result && result[0] !== 'error') {
+          const withdrawalInfo = result[4]; // [ WITHDRAWAL_ID, _PH, METHOD, PAYMENT_ID, WALLET, AMOUNT, _PH, _PH, WITHDRAWAL_FEE ]
+
+          if (withdrawalInfo[0]) {
+            return {
+              success: true,
+              result: {
+                id: withdrawalInfo[0],
+                currency: coin,
+                amount: +withdrawalInfo[5],
+                address,
+                withdrawalFee: +withdrawalInfo[8],
+                status: null,
+                date: result?.[0],
+                target: null,
+                network: withdrawalInfo[2],
+                payment_id: withdrawalInfo[4],
+                wallet: withdrawalInfo[5],
+                note: result[7],
+              },
+            };
+          } else {
+            return {
+              success: false,
+              error: result[7] || 'No details',
+            };
+          }
+        } else {
+          const errorMessage = `${result?.[0]} ${result?.[1]}> ${result?.[2]}`;
+          log.warn(`Request withdraw(${paramString}) failed: ${errorMessage}`);
+
+          return {
+            success: undefined,
+            error: errorMessage,
+          };
+        }
+      } catch (err) {
+        log.warn(`API request withdraw(${paramString}}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
+
+        return {
+          success: undefined,
+          error: err,
+        };
+      }
     },
   };
 };

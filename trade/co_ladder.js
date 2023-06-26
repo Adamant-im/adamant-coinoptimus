@@ -6,7 +6,7 @@
 
 const constants = require('../helpers/const');
 const utils = require('../helpers/utils');
-const config = require('../modules/config/reader');
+const config = require('../modules/configReader');
 const log = require('../helpers/log');
 const notify = require('../helpers/notify');
 const tradeParams = require('./settings/tradeParams_' + config.exchange);
@@ -96,24 +96,9 @@ module.exports = {
       ladderOrders = await orderUtils.updateOrders(ladderOrders, config.pair, utils.getModuleName(module.id) + ':ld-',
           undefined, undefined, false); // Update ld-order statuses
 
-      // Close ld-orders in To be removed state and out-of-range. Make sure we close all of them.
+      // Close and remove orders in state To be removed from the ordersDb
 
       ladderOrders = await this.closeLadderOrders(ladderOrders);
-
-      const toBeRemovedLadderOrders = ladderOrders.filter((order) => order.ladderState === 'To be removed');
-      if (toBeRemovedLadderOrders.length !== 0) {
-        log.warn('Ladder: Unable to purge all of the ld-orders in To be removed state. Breaking this iteration and will try in the next one.');
-        return;
-      }
-
-      const outOfRangeLadderOrders = ladderOrders.filter(
-          (order) => (order.ladderIndex < 0 || order.ladderIndex > tradeParams.mm_ladderCount - 1),
-      );
-      if (outOfRangeLadderOrders.length !== 0) {
-        log.warn('Ladder: Unable to purge all of the out-of-range ld-orders. Breaking this iteration and will try in the next one.');
-        return;
-      }
-
 
       // Main ld-orders update cycle. Fills the ladder with orders.
 
@@ -122,7 +107,6 @@ module.exports = {
 
       for (const type of ['buy', 'sell']) {
         let previousOrder;
-        let previousOrderInitialState;
         filledOrderPrices[type] = {};
 
         for (let index = 0; index < tradeParams.mm_ladderCount; index++) {
@@ -130,34 +114,37 @@ module.exports = {
           const criticalErrorString = `Stopped building ${type}-ladder on the ${index + 1} of ${tradeParams.mm_ladderCount} order because of critical error`;
 
           if (order?.ladderState === 'Filled') {
-            // Check if the order is truly Filled
-
-            const orderInfo = `${utils.inclineNumber(index)} ${type} ld-order ${order._id} @${order.price} ${config.coin2}`;
-
             let isOrderFilledByApi = false;
             let isOrderNotFilledByApi = false;
-
-            // If available, use getOrderDetails()
 
             if (traderapi.getOrderDetails) {
               const orderDetails = await traderapi.getOrderDetails(order._id, order.pair);
               const orderStatus = orderDetails?.status;
 
-              if (orderStatus) {
-                isOrderFilledByApi = ['part_filled', 'filled'].includes(orderStatus);
-                isOrderNotFilledByApi = !isOrderFilledByApi;
-              } else {
-                log.warn(`Ladder: Unable to receive ${orderInfo} status. Request result is ${JSON.stringify(orderDetails)}.`);
+              if (!orderStatus) {
+                log.warn(`Ladder: ${criticalErrorString}/ No order status received. Request result is ${JSON.stringify(orderDetails)}.`);
+                break;
               }
+
+              isOrderFilledByApi = ['part_filled', 'filled'].includes(orderStatus);
+              isOrderNotFilledByApi = !isOrderFilledByApi;
             }
 
-            if (isOrderFilledByApi || constants.LADDER_PREVIOUS_FILLED_ORDER_STATES.includes(previousOrderInitialState)) {
-              // Verified that the order is filled
+            if (
+              (index > 0 && !utils.isPositiveOrZeroInteger(maxFilledOrderIndex[type])) ||
+              (index > maxFilledOrderIndex[type] + 1) ||
+              isOrderNotFilledByApi
+            ) {
+              let updateStateString = updateLadderState(order, 'Missed');
+              updateStateString = ` Its ${updateStateString}, it will be re-created.`;
 
+              const isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled.' : 'Ld-order with lower index is not filled.';
+
+              log.warn(`Ladder: It seems ${utils.inclineNumber(index)} ${type} ld-order ${order._id} @${order.price} ${config.coin2} is mistakenly marked as filled: ${isNotFilledViaApiString}${updateStateString}`);
+              await order.save();
+            } else {
               maxFilledOrderIndex[type] = index;
               filledOrderPrices[type][index] = order.price;
-
-              // Mark cross-type order as To be removed
 
               const crossTypeOrderIndexToRemove = tradeParams.mm_ladderCount - 1 - index;
               const crossTypeOrderToRemove = ladderOrders.find((order) =>
@@ -185,26 +172,15 @@ module.exports = {
               }
 
               const isFilledViaApiString = isOrderFilledByApi ? 'Exchange\'s API described the order as filled.' : 'No evidence that the order is not filled.';
+
               let filledMessage = `Considering ${utils.inclineNumber(index)} ld-order ${order._id} to ${type}`;
               filledMessage += ` ${(order.coin1AmountInitial || order.coin1Amount).toFixed(coin1Decimals)} ${config.coin1} for ${order.coin2Amount.toFixed(coin2Decimals)} ${config.coin2}`;
               filledMessage += ` @${order.price.toFixed(coin2Decimals)} ${config.coin2} as filled: ${isFilledViaApiString} ${updateCrossTypeOrderStateString}`;
-
               notify(`${config.notifyName}: ${filledMessage}`, 'log');
-            } else {
-              // Consider the order is not filled; it's Missed
-
-              let updateStateString = updateLadderState(order, 'Missed');
-              updateStateString = ` Its ${updateStateString}, it will be re-created.`;
-
-              const isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled.' : `Ld-order with lower index is in ${previousOrderInitialState} state and isn't filled.`;
-
-              log.warn(`Ladder: It seems ${orderInfo} is mistakenly marked as filled: ${isNotFilledViaApiString}${updateStateString}`);
-              await order.save();
             }
-          }
+          } // if (order?.ladderState === 'Filled')
 
-          previousOrderInitialState = order?.ladderState;
-          previousOrder = await this.updateLadderOrder(order, previousOrder, type, index, ladderOrders);
+          previousOrder = await this.updateLadderOrder(order, previousOrder, type, index);
 
           if (!previousOrder) {
             log.warn(`Ladder: ${criticalErrorString}/ No previous order received.`);
@@ -213,7 +189,9 @@ module.exports = {
         }
       }
 
-      // Include newly placed order and exclude filled (removed)
+      // Shift indexes in case of orders filled
+
+      let filledInfoString = '';
 
       ladderOrders = await ordersDb.find({
         isProcessed: false,
@@ -222,25 +200,30 @@ module.exports = {
         exchange: config.exchange,
       });
 
-      // Shift indexes in case of orders filled
-
-      let filledInfoString = '';
-
       for (const type of ['buy', 'sell']) {
         if (utils.isPositiveOrZeroInteger(maxFilledOrderIndex[type])) {
-          for (const order of ladderOrders) {
-            order.ladderPreviousIndex = order.ladderIndex;
+          const shiftedOrderCount = {
+            buy: 0,
+            sell: 0,
+          };
 
-            if (order.type === type) {
-              order.ladderIndex = order.ladderIndex - maxFilledOrderIndex[type] - 1;
-            } else {
-              order.ladderIndex = order.ladderIndex + maxFilledOrderIndex[type] + 1;
+          for (const order of ladderOrders) {
+            if (!['Filled', 'To be removed'].includes(order.ladderState)) {
+              order.ladderPreviousIndex = order.ladderIndex;
+
+              if (order.type === type) {
+                order.ladderIndex = order.ladderIndex - maxFilledOrderIndex[type] - 1;
+              } else {
+                order.ladderIndex = order.ladderIndex + maxFilledOrderIndex[type] + 1;
+              }
+
+              shiftedOrderCount[order.type] += 1;
             }
 
             await order.save();
           }
 
-          filledInfoString += `${maxFilledOrderIndex[type] + 1} ${type} ld-orders filled. `;
+          filledInfoString = `${maxFilledOrderIndex[type] + 1} ${type} ld-orders filled. ${shiftedOrderCount['buy']} buy and ${shiftedOrderCount['sell']} sell order indexes shifted respectively.`;
         }
       }
 
@@ -270,7 +253,7 @@ module.exports = {
         if (utils.isPositiveNumber(tradeParams.mm_ladderMidPrice)) {
           tradeParams.mm_ladderMidPriceType = 'Shifted';
           const changeColor = tradeParams.mm_ladderMidPrice > mm_ladderMidPriceSaved ? '🟩' : '🟥';
-          filledInfoString += `${changeColor} Mid ladder price changed from ${mm_ladderMidPriceSaved.toFixed(coin2Decimals)} ${config.coin2} to ${tradeParams.mm_ladderMidPrice.toFixed(coin2Decimals)} ${config.coin2}.`;
+          filledInfoString += ` ${changeColor} Mid ladder price changed from ${mm_ladderMidPriceSaved.toFixed(coin2Decimals)} ${config.coin2} to ${tradeParams.mm_ladderMidPrice.toFixed(coin2Decimals)} ${config.coin2}.`;
         } else {
           tradeParams.mm_ladderMidPrice = mm_ladderMidPriceSaved;
           log.warn(`Ladder: Unexpected new Mid ladder price: ${tradeParams.mm_ladderMidPrice}. Keeping ${mm_ladderMidPriceSaved} ${config.coin2} value.`);
@@ -285,7 +268,7 @@ module.exports = {
         notify(`${config.notifyName}: ${filledInfoString}`, 'info');
       }
 
-      // Log ld-orders with their types info after update
+      // Log ld-orders info after update
 
       let ladderOrdersByState = '';
       constants.LADDER_STATES.forEach((state) => {
@@ -307,17 +290,12 @@ module.exports = {
   },
 
   /**
-   * Closes ld-orders:
-   * - In To be removed state
-   * - All ld-orders if closeAllOrdersReason provided
+   * Closes Ladder orders in To be removed state, if any
    * @param {Array<Object>} ldOrders Ladder orders from the DB
    * @param {String} closeAllOrdersReason To close all the ld-orders, tell a reason
-   * @return {Array of Object} Updated order list, removed orders excluded
+   * @return {Array of Object} Updated order list without removed orders
    */
   async closeLadderOrders(ldOrders, closeAllOrdersReason) {
-    let toBeRemovedCount = 0;
-    let removedCount = 0;
-
     const updatedLdOrders = [];
 
     for (const order of ldOrders) {
@@ -327,24 +305,14 @@ module.exports = {
         if (closeAllOrdersReason) {
           reasonToClose = closeAllOrdersReason;
         } else if (order.ladderState === 'To be removed') {
-          if (order.ladderCrossOrderIndex) {
-            reasonToClose = `Cross-type (${order.ladderCrossOrderType}) ld-order @${order.ladderCrossOrderPrice} ${config.coin2} with index ${order.ladderCrossOrderIndex} is filled for this ${order.type} ${utils.inclineNumber(order.ladderIndex)} ld-order @${order.price} ${config.coin2}`;
-          } else {
-            reasonToClose = `Freeing up balanced to place an order with lower than ${order.type}-${order.ladderIndex} index`;
-          }
-        } else if (order.ladderIndex < 0 || order.ladderIndex > tradeParams.mm_ladderCount - 1) {
-          reasonToClose = `Index ${order.ladderIndex} of ${order.type} ld-order @${order.price} ${config.coin2} is out of [0, ${tradeParams.mm_ladderCount - 1}] range`;
+          reasonToClose = `Cross-type (${order.ladderCrossOrderType}) ld-order @${order.ladderCrossOrderPrice} ${config.coin2} with index ${order.ladderCrossOrderIndex} is filled for this ${order.type} ${utils.inclineNumber(order.ladderIndex)} ld-order @${order.price} ${config.coin2}`;
         }
 
         if (reasonToClose) {
-          toBeRemovedCount++;
-
           const cancellation = await orderCollector.clearOrderById(
               order, order.pair, order.type, this.readableModuleName, reasonToClose, reasonObject, traderapi);
 
           if (cancellation.isCancelRequestProcessed) {
-            removedCount++;
-
             let updateStateString = updateLadderState(order, 'Removed');
             updateStateString = ` Its ${updateStateString}.`;
 
@@ -358,31 +326,23 @@ module.exports = {
           updatedLdOrders.push(order);
         }
       } catch (e) {
-        log.error(`Error in closeLadderOrders() of ${utils.getModuleName(module.id)} module: ${e}`);
+        log.error(`Error in closeLadderOrders() of ${utils.getModuleName(module.id)} module: ` + e);
       }
-    }
-
-    if (toBeRemovedCount) {
-      log.log(`Ladder: Closed ${removedCount} of ${toBeRemovedCount} ld-orders in To be removed state or with out-of-range index. Total ladder orders: ${ldOrders.length} -> ${updatedLdOrders.length}.`);
     }
 
     return updatedLdOrders;
   },
 
   /**
-   * Updates a ladder order depending on its state:
-   * - Not placed, Cancelled, Missed, undefined -> Place new order
-   * - Open, Partly filled, To be removed, Removed -> Nothing
-   * - Filled -> Mark as executed and processed. There will be no ld-order with its ID.
+   * Updates a ladder order depending on its state
    * @param {Object} order If order is already in ordersDB
    * @param {Object} previousOrder Order with previous ladder index
    * @param {String} type 'buy' or 'sell'
    * @param {Number} index Ladder order index of the type
-   * @param {Array<Object>} ldOrders Ladder orders from the DB
    * @return {Object} Created or Updated orderDb object
    */
-  async updateLadderOrder(order, previousOrder, type, index, ldOrders) {
-    const paramString = `order: ${order}, previousOrder: ${previousOrder}, type: ${type}, index: ${index}, ldOrders: ${ldOrders?.length}`;
+  async updateLadderOrder(order, previousOrder, type, index) {
+    const paramString = `order: ${order}, previousOrder: ${previousOrder}, type: ${type}, index: ${index}`;
 
     try {
       const price = order?.price || setPrice(previousOrder?.price || tradeParams.mm_ladderMidPrice, type);
@@ -392,7 +352,7 @@ module.exports = {
         case 'Not placed':
         case 'Cancelled':
         case 'Missed':
-          order = await this.placeLadderOrder(order, price, type, index, ldOrders);
+          order = await this.placeLadderOrder(order, price, type, index);
           break;
         case 'Open':
         case 'Partly filled':
@@ -424,11 +384,10 @@ module.exports = {
    * @param {Number} price Order price
    * @param {String} type 'buy' or 'sell'
    * @param {Number} index Ladder order index of the type
-   * @param {Array<Object>} ldOrders Ladder orders from the DB
    * @return {Object} Created or Updated orderDb object
    */
-  async placeLadderOrder(order, price, type, index, ldOrders) {
-    const paramString = `order: ${order}, price: ${price}, type: ${type}, index: ${index}, ldOrders: ${ldOrders?.length}`;
+  async placeLadderOrder(order, price, type, index) {
+    const paramString = `order: ${order}, price: ${price}, type: ${type}, index: ${index}`;
 
     const { ordersDb } = db;
     let newOrder = {};
@@ -517,14 +476,9 @@ module.exports = {
         return order;
       }
 
-      const lNotPlacedOrder = ldOrders.find((order) =>
-        order.type === type &&
-        order.ladderIndex < index &&
-        order.ladderState === 'Not placed' &&
-        order.ladderNotPlacedReason === 'Not enough balances',
-      );
-
-      if (lNotPlacedOrder) {
+      // Check balances
+      const balances = await isEnoughCoins(config.coin1, config.coin2, coin1Amount, coin2Amount, type, index);
+      if (!balances.result) {
         order = order || newOrder;
 
         let updateStateString = updateLadderState(order, 'Not placed', 'Not enough balances');
@@ -532,71 +486,22 @@ module.exports = {
           updateStateString = ` Ladder order ${updateStateString}.`;
         }
 
-        log.log(`Ladder: Skipping placing ${utils.inclineNumber(index)} ${type} ld-order @${price} ${config.coin2} in ${order?.ladderState} state, as there are orders with lower index in Not placed (Not enough balances) state.`);
+        if (balances.message) {
+          if (
+            Date.now()-lastNotifyBalancesTimestamp > constants.HOUR &&
+            index < Math.ceil(tradeParams.mm_ladderCount * NOTIFY_BALANCE_INDEX_PERCENT / 100)
+          ) {
+            notify(`${config.notifyName}: ${balances.message}${updateStateString}`, 'warn', config.silent_mode);
+            lastNotifyBalancesTimestamp = Date.now();
+          } else {
+            log.log(`Ladder: ${balances.message}${updateStateString}`);
+          }
+        }
 
         order.ladderUpdateDate = utils.unixTimeStampMs();
         await order.save();
 
         return order;
-      }
-
-      // Check balances
-      let balances = await isEnoughCoins(config.coin1, config.coin2, coin1Amount, coin2Amount, type, index, price);
-      if (!balances.result) {
-        // Check if there are open order with higher index, and close them to free up balances
-
-        if (balances.message) {
-          for (let hIndex = tradeParams.mm_ladderCount - 1; hIndex > index; hIndex--) {
-            const hOrder = ldOrders.find((order) => order.type === type && order.ladderIndex === hIndex);
-
-            if (hOrder) {
-              if (constants.LADDER_OPENED_STATES.includes(hOrder.ladderState)) {
-                const hOrderString = ` Closing ld-order with higher ${type}-${hIndex} index to free up balances> the order`;
-
-                const updateHOrderStateString = updateLadderState(hOrder, 'To be removed');
-                const updateStateString = `${hOrderString} ${updateHOrderStateString}.`;
-
-                log.log(`Ladder: ${balances.message}${updateStateString}`);
-
-                ldOrders = await this.closeLadderOrders(ldOrders);
-                if (hOrder.ladderState === 'Removed') {
-                  balances = await isEnoughCoins(config.coin1, config.coin2, coin1Amount, coin2Amount, type, index, price);
-                  break;
-                } else {
-                  log.warn(`Ladder: Unable to close ld-order with higher index ${hIndex} to free up balances. Trying to close other orders.`);
-                }
-              }
-            }
-          }
-        }
-
-        // Maybe, we freed up balances, one more try
-
-        if (!balances.result) {
-          order = order || newOrder;
-
-          let updateStateString = updateLadderState(order, 'Not placed', 'Not enough balances');
-          if (updateStateString) {
-            updateStateString = ` Ladder order ${updateStateString}.`;
-          }
-
-          if (balances.message) {
-            if (
-              Date.now()-lastNotifyBalancesTimestamp > constants.HOUR &&
-              index < Math.ceil(tradeParams.mm_ladderCount * NOTIFY_BALANCE_INDEX_PERCENT / 100)
-            ) {
-              notify(`${config.notifyName}: ${balances.message}${updateStateString}`, 'warn', config.silent_mode);
-              lastNotifyBalancesTimestamp = Date.now();
-            } else {
-              log.log(`Ladder: ${balances.message}${updateStateString}`);
-            }
-          }
-
-          order.ladderUpdateDate = utils.unixTimeStampMs();
-          await order.save();
-
-          return order;
-        }
       }
 
       const orderInfo = `${type} ${coin1Amount.toFixed(coin1Decimals)} ${config.coin1} for ${coin2Amount.toFixed(coin2Decimals)} ${config.coin2} at ${price.toFixed(coin2Decimals)} ${config.coin2}`;
@@ -647,12 +552,11 @@ module.exports = {
  * @param {Number} amount2 Amount in coin2 (quote)
  * @param {String} type 'buy' or 'sell'
  * @param {Number} ladderIndex Ladder order index, for logging only
- * @param {Number} price Ladder order price, for logging only
  * @returns {Object<Boolean, String>}
  *  result: if enough funds to place order
  *  message: error message
  */
-async function isEnoughCoins(coin1, coin2, amount1, amount2, type, ladderIndex, price) {
+async function isEnoughCoins(coin1, coin2, amount1, amount2, type, ladderIndex) {
   const coin1Decimals = orderUtils.parseMarket(config.pair).coin1Decimals;
   const coin2Decimals = orderUtils.parseMarket(config.pair).coin2Decimals;
 
@@ -670,11 +574,11 @@ async function isEnoughCoins(coin1, coin2, amount1, amount2, type, ladderIndex, 
       balance2freezed = balances.filter((crypto) => crypto.code === coin2)[0]?.freezed || 0;
 
       if ((!balance1free || balance1free < amount1) && type === 'sell') {
-        output = `Not enough balance to place ${amount1.toFixed(coin1Decimals)} ${coin1} @${price.toFixed(coin2Decimals)} ${config.coin2} ${type} ld-order with ${ladderIndex} index. Free: ${balance1free.toFixed(coin1Decimals)} ${coin1}, frozen: ${balance1freezed.toFixed(coin1Decimals)} ${coin1}.`;
+        output = `Not enough balance to place ${amount1.toFixed(coin1Decimals)} ${coin1} ${type} ld-order with ${ladderIndex} index. Free: ${balance1free.toFixed(coin1Decimals)} ${coin1}, frozen: ${balance1freezed.toFixed(coin1Decimals)} ${coin1}.`;
         isBalanceEnough = false;
       }
       if ((!balance2free || balance2free < amount2) && type === 'buy') {
-        output = `Not enough balance to place ${amount2.toFixed(coin2Decimals)} ${coin2} @${price.toFixed(coin2Decimals)} ${config.coin2} ${type} ld-order with ${ladderIndex} index. Free: ${balance2free.toFixed(coin2Decimals)} ${coin2}, frozen: ${balance2freezed.toFixed(coin2Decimals)} ${coin2}.`;
+        output = `Not enough balance to place ${amount2.toFixed(coin2Decimals)} ${coin2} ${type} ld-order with ${ladderIndex} index. Free: ${balance2free.toFixed(coin2Decimals)} ${coin2}, frozen: ${balance2freezed.toFixed(coin2Decimals)} ${coin2}.`;
         isBalanceEnough = false;
       }
 
