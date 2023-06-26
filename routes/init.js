@@ -1,6 +1,6 @@
 const express = require('express');
 const log = require('../helpers/log');
-const config = require('../modules/configReader');
+const config = require('../modules/config/reader');
 const healthApi = require('./health');
 const debugApi = require('./debug');
 
