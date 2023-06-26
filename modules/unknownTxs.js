@@ -1,6 +1,6 @@
 const utils = require('../helpers/utils');
 const db = require('./DB');
-const config = require('./configReader');
+const config = require('./config/reader');
 const log = require('../helpers/log');
 const api = require('./api');
 

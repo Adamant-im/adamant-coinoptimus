@@ -1,4 +1,4 @@
-const config = require('../modules/configReader');
+const config = require('../modules/config/reader');
 const log = require('./log');
 const tradeParams = require('../trade/settings/tradeParams_' + config.exchange);
 const fs = require('fs');

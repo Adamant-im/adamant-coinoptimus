@@ -2,7 +2,7 @@
 /* eslint-disable quote-props */
 
 const axios = require('axios');
-const config = require('../modules/configReader');
+const config = require('../modules/config/reader');
 const log = require('./log');
 const api = require('../modules/api');
 

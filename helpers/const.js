@@ -12,6 +12,7 @@ module.exports = {
   MAX_ADM_MESSAGE_LENGTH: 10000,
   LADDER_STATES: ['Not placed', 'Open', 'Filled', 'Partly filled', 'Cancelled', 'Missed', 'To be removed', 'Removed'],
   LADDER_OPENED_STATES: ['Open', 'Partly filled'],
+  LADDER_PREVIOUS_FILLED_ORDER_STATES: [undefined, 'Not placed', 'Filled', 'Cancelled', 'To be removed', 'Removed'],
   REGEXP_WHOLE_NUMBER: /^[0-9]+$/,
   REGEXP_UUID: /^[a-f\d]{4}(?:[a-f\d]{4}-){4}[a-f\d]{12}$/,
 };
