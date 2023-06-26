@@ -83,21 +83,8 @@ module.exports = {
     type: String,
     default: 'Hello 😊. This is a stub. I have nothing to say. Please check my config.',
   },
-  api: {
-    type: {
-      port: {
-        type: Number,
-        isRequired: true,
-      },
-      health: {
-        type: Boolean,
-        default: true,
-      },
-      debug: {
-        type: Boolean,
-        default: true,
-      },
-    },
+  debug_api: {
+    type: Number,
   },
   amount_to_confirm_usd: {
     type: Number,
