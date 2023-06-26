@@ -1,6 +1,6 @@
 const constants = require('../helpers/const');
 const utils = require('../helpers/utils');
-const config = require('../modules/configReader');
+const config = require('../modules/config/reader');
 const log = require('../helpers/log');
 const traderapi = require('./trader_' + config.exchange)(config.apikey, config.apisecret, config.apipassword, log);
 const db = require('../modules/DB');

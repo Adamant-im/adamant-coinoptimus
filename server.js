@@ -4,7 +4,7 @@
 
 const express = require('express');
 const app = express();
-const config = require('./modules/configReader');
+const config = require('./modules/config/reader');
 const log = require('./helpers/log');
 const port = config.debug_api;
 const db = require('./modules/DB');

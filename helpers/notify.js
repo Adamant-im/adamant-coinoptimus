@@ -1,5 +1,8 @@
+/* eslint-disable object-shorthand */
+/* eslint-disable quote-props */
+
 const axios = require('axios');
-const config = require('../modules/configReader');
+const config = require('../modules/config/reader');
 const log = require('./log');
 const api = require('../modules/api');
 
@@ -8,7 +11,23 @@ const {
   adamant_notify_priority = [],
   slack = [],
   slack_priority = [],
+  discord_notify = [],
+  discord_notify_priority = [],
 } = config;
+
+const slackColors = {
+  'error': '#FF0000',
+  'warn': '#FFFF00',
+  'info': '#00FF00',
+  'log': '#FFFFFF',
+};
+
+const discordColors = {
+  'error': '16711680',
+  'warn': '16776960',
+  'info': '65280',
+  'log': '16777215',
+};
 
 module.exports = (messageText, type, silent_mode = false, isPriority = false) => {
   try {
@@ -23,26 +42,10 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
         slack;
 
       if (slackKeys.length) {
-        let color;
-        switch (type) {
-          case ('error'):
-            color = '#FF0000';
-            break;
-          case ('warn'):
-            color = '#FFFF00';
-            break;
-          case ('info'):
-            color = '#00FF00';
-            break;
-          case ('log'):
-            color = '#FFFFFF';
-            break;
-        }
-
         const params = {
           'attachments': [{
             'fallback': message,
-            'color': color,
+            'color': slackColors[type],
             'text': makeBoldForSlack(message),
             'mrkdwn_in': ['text'],
           }],
@@ -51,7 +54,7 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
         slackKeys.forEach((slackApp) => {
           if (typeof slackApp === 'string' && slackApp.length > 34) {
             axios.post(slackApp, params)
-                .catch(function(error) {
+                .catch((error) => {
                   log.log(`Request to Slack with message ${message} failed. ${error}.`);
                 });
           }
@@ -71,6 +74,29 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
                 log.warn(`Failed to send notification message '${mdMessage}' to ${admAddress}. ${response.errorMessage}.`);
               }
             });
+          }
+        });
+      }
+
+      const discordKeys = isPriority ?
+        [...discord_notify, ...discord_notify_priority] :
+        discord_notify;
+
+      if (discordKeys.length) {
+        const params = {
+          embeds: [
+            {
+              color: discordColors[type],
+              description: makeBoldForDiscord(message),
+            },
+          ],
+        };
+        discordKeys.forEach((discordKey) => {
+          if (typeof discordKey === 'string') {
+            axios.post(discordKey, params)
+                .catch((error) => {
+                  log.log(`Request to Discord with message ${message} failed. ${error}.`);
+                });
           }
         });
       }
@@ -101,4 +127,8 @@ function makeBoldForMarkdown(text) {
 
 function makeBoldForSlack(text) {
   return doubleAsterisksToSingle(text);
+}
+
+function makeBoldForDiscord(text) {
+  return singleAsteriskToDouble(text);
 }
