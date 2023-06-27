@@ -17,7 +17,7 @@ module.exports = {
     }
 
     app.listen(config.api.port, () => {
-      log.info(`API server is listening on http://localhost:${config.api.port}. Health enabled: ${config.api.health}. Debug enabled: ${config.api.debug}`);
+      log.info(`API server is listening on http://localhost:${config.api.port}. Health enabled: ${config.api.health}. Debug enabled: ${config.api.debug}.`);
     });
   },
 };
