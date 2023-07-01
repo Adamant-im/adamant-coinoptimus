@@ -46,7 +46,7 @@ try {
 
   const [coin1, coin2] = config.pair.split('/');
 
-  const file = `tradeParams_${config.exchange}.js`;
+  const file = `tradeParams_${config.exchange.toLowerCase()}.js`;
   const fileWithPath = `./trade/settings/${file}`;
 
   config = {
