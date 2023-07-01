@@ -38,11 +38,11 @@ See trades history example with a 3% price step:
 
 # Supported exchanges
 
-* [Binance](https://binance.com)
+* [Binance](https://accounts.binance.com/register?ref=36699789)
 * [P2PB2B](https://p2pb2b.com)
 * [Azbit](https://azbit.com?referralCode=9YVWYAF)
 * [StakeCube](https://stakecube.net/?team=adm)
-* [Bitfinex](https://bitfinex.com)
+* [Bitfinex](https://www.bitfinex.com/sign-up?refcode=4k5uFSBLZ)
 
 # Usage and Installation
 
