@@ -32,7 +32,8 @@
     "grid trading",
     "binance",
     "stakecube",
-    "bitfinex"
+    "bitfinex",
+    "bittrex"
   ],
   "author": "Aleksei Lebedev, ADAMANT Team <devs@adamant.im> (https://adamant.im)",
   "license": "GPL-3.0",
