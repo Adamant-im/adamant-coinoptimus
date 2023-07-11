@@ -1,6 +1,5 @@
 const BittrexApi = require('./api/bittrex_api');
 const utils = require('../helpers/utils');
-const config = require('./../modules/config/reader');
 
 /**
  * API endpoints:
@@ -19,11 +18,6 @@ module.exports = (
     log,
     publicOnly = false,
     loadMarket = true,
-    useSocket = false,
-    useSocketPull = false,
-    accountNo = 0,
-    coin1 = config.coin1,
-    coin2 = config.coin2,
 ) => {
   const bittrexApiClient = BittrexApi();
   const bittrexCreditsCached = { timestamp: 0, available: 0 };
