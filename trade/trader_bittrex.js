@@ -811,65 +811,6 @@ module.exports = (
         return undefined;
       }
     },
-
-    /**
-     * Get deposit history
-     * @param {String} coin Filter by coin, optional
-     * @param {Number} limit Limit records, optional
-     * @returns {Promise<{success: boolean, error: string}|{result: *[], success: boolean}>}
-     */
-    async getDepositHistory(coin, limit) {
-      const paramString = `coin: ${coin}, limit: ${limit}`;
-
-      let records;
-
-      try {
-        records = await bittrexApiClient.getDepositHistory(coin, limit);
-      } catch (error) {
-        log.warn(`API request getDepositHistory(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
-        return {
-          success: false,
-          error,
-        };
-      }
-
-      try {
-        const result = [];
-
-        records.forEach((record) => {
-          result.push({
-            id: record.id,
-            currencySymbol: record.currencySymbol.toUpperCase(),
-            quantity: +record.quantity,
-            cryptoAddress: record.cryptoAddress,
-            cryptoAddressTag: record.cryptoAddressTag,
-            fundsTransferMethodId: record.fundsTransferMethodId,
-            txId: record.txId,
-            confirmations: record.confirmations,
-            createdAt: null,
-            updatedAt: new Date(record.completedAt).getTime(),
-            status: record.status,
-            fee: record.txCost, // undefined for deposits
-            target: record.target, // undefined for deposits
-            source: record.source,
-            accountId: record.accountId,
-            chain: null,
-            chainPlain: null,
-          });
-        });
-
-        return {
-          success: true,
-          result,
-        };
-      } catch (error) {
-        log.warn(`Error while processing getDepositHistory(${paramString}) request result: ${JSON.stringify(records)}. ${error}`);
-        return {
-          success: false,
-          error,
-        };
-      }
-    },
   };
 };
 

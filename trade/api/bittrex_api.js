@@ -409,25 +409,6 @@ module.exports = function() {
     getVolume() {
       return protectedRequest('get', '/account/volume', {});
     },
-
-    /**
-     * List closed deposits. StartDate and EndDate filters apply to the CompletedAt field.
-     * Pagination and the sort order of the results are in inverse order of the CompletedAt field.
-     * https://bittrex.github.io/api/v3#operation--deposits-closed-get
-     * @param {String} coin As ETH
-     * @param {Number} limit Default: 200. Min: 1. Max: 200.
-     * @return {Promise<Array>}
-     */
-    getDepositHistory(coin, limit = 200) {
-      const data = {
-        // status: 'COMPLETED', // COMPLETED, ORPHANED, INVALIDATED (optional)
-        pageSize: limit,
-        currencySymbol: coin,
-      };
-
-      return protectedRequest('get', '/deposits/closed', data);
-    },
-
   };
 
   return EXCHANGE_API;
