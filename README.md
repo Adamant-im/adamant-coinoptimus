@@ -43,7 +43,7 @@ See trades history example with a 3% price step:
 * [Azbit](https://azbit.com?referralCode=9YVWYAF)
 * [StakeCube](https://stakecube.net/?team=adm)
 * [Bitfinex](https://www.bitfinex.com/sign-up?refcode=4k5uFSBLZ)
-* [Bittrex](https://bittrex.com)
+* [Bittrex](https://global.bittrex.com/discover/join?referralCode=TGD-P0Z-F5W)
 
 # Usage and Installation
 
