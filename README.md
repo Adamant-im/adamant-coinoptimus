@@ -44,6 +44,7 @@ See trades history example with a 3% price step:
 * [StakeCube](https://stakecube.net/?team=adm)
 * [Bitfinex](https://www.bitfinex.com/sign-up?refcode=4k5uFSBLZ)
 * [Bittrex](https://global.bittrex.com/discover/join?referralCode=TGD-P0Z-F5W)
+* [Coinstore](https://coinstore.com)
 
 # Usage and Installation
 
