@@ -50,7 +50,8 @@
     "Binance",
     "StakeCube",
     "Bitfinex",
-    "Bittrex"
+    "Bittrex",
+    "Coinstore"
   ],
 
   /** Exchange to work with. Case insensitive. **/
