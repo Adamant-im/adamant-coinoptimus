@@ -257,6 +257,11 @@ module.exports = (
 
       try {
         orders = await bittrexApiClient.getOrders(coinPair.pairPlain);
+
+        if (!orders?.[0]?.id) {
+          log.error('1111111111');
+          log.error(orders);
+        }
       } catch (error) {
         log.warn(`API request getOpenOrders(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
         return undefined;
