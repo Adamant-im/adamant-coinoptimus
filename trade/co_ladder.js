@@ -139,9 +139,12 @@ module.exports = {
 
             // If available, use getOrderDetails()
 
+            let orderStatusString = '';
+
             if (traderapi.getOrderDetails) {
               const orderDetails = await traderapi.getOrderDetails(order._id, order.pair);
               const orderStatus = orderDetails?.status;
+              orderStatusString = `, the status by API is _${orderStatus}_`;
 
               if (orderStatus) {
                 isOrderFilledByApi = ['part_filled', 'filled'].includes(orderStatus);
@@ -151,7 +154,10 @@ module.exports = {
               }
             }
 
-            if (isOrderFilledByApi || constants.LADDER_PREVIOUS_FILLED_ORDER_STATES.includes(previousOrderInitialState)) {
+            if (
+              !isOrderNotFilledByApi &&
+              (isOrderFilledByApi || constants.LADDER_PREVIOUS_FILLED_ORDER_STATES.includes(previousOrderInitialState))
+            ) {
               // Verified that the order is filled
 
               maxFilledOrderIndex[type] = index;
@@ -184,7 +190,9 @@ module.exports = {
                 updateCrossTypeOrderStateString = `${crossTypeOrderString} wasn't found.`;
               }
 
-              const isFilledViaApiString = isOrderFilledByApi ? 'Exchange\'s API described the order as filled.' : 'No evidence that the order is not filled.';
+              let isFilledViaApiString = isOrderFilledByApi ? 'Exchange\'s API described the order as filled' : 'No evidence that the order is not filled';
+              isFilledViaApiString += `${orderStatusString}.`;
+
               let filledMessage = `Considering ${utils.inclineNumber(index)} ld-order ${order._id} to ${type}`;
               filledMessage += ` ${(order.coin1AmountInitial || order.coin1Amount).toFixed(coin1Decimals)} ${config.coin1} for ${order.coin2Amount.toFixed(coin2Decimals)} ${config.coin2}`;
               filledMessage += ` @${order.price.toFixed(coin2Decimals)} ${config.coin2} as filled: ${isFilledViaApiString} ${updateCrossTypeOrderStateString}`;
@@ -196,7 +204,8 @@ module.exports = {
               let updateStateString = updateLadderState(order, 'Missed');
               updateStateString = ` Its ${updateStateString}, it will be re-created.`;
 
-              const isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled.' : `Ld-order with lower index is in ${previousOrderInitialState} state and isn't filled.`;
+              let isNotFilledViaApiString = isOrderNotFilledByApi ? 'Exchange\'s API described the order as not filled' : `Ld-order with lower index is in ${previousOrderInitialState} state and isn't filled`;
+              isNotFilledViaApiString += `${orderStatusString}.`;
 
               log.warn(`Ladder: It seems ${orderInfo} is mistakenly marked as filled: ${isNotFilledViaApiString}${updateStateString}`);
               await order.save();

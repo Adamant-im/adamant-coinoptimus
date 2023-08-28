@@ -49,7 +49,9 @@
     "Azbit",
     "Binance",
     "StakeCube",
-    "Bitfinex"
+    "Bitfinex",
+    "Bittrex",
+    "Coinstore"
   ],
 
   /** Exchange to work with. Case insensitive. **/
