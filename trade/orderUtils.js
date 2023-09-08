@@ -268,7 +268,6 @@ module.exports = {
           traderapi.features().dontTrustApi &&
           traderapi.getOrderDetails
         ) {
-          let allOrdersAreUnknown = true;
           let falseResultDetails;
 
           for (const dbOrder of dbOrders) {
@@ -298,16 +297,8 @@ module.exports = {
                 falseResultDetails = `Order ${dbOrder._id} status is ${orderStatus}`;
                 break;
               }
-
-              if (orderStatus !== 'unknown') {
-                allOrdersAreUnknown = false;
-              }
             }
           } // for (const dbOrder of dbOrders)
-
-          if (!falseResultDetails && allOrdersAreUnknown) {
-            falseResultDetails = `All of ${dbOrders.length} ${samePurpose}dbOrders are in unknown status`;
-          }
 
           if (falseResultDetails) {
             log.warn(`orderUtils: It seems ${config.exchangeName} API returned false empty order list: ${falseResultDetails}. Leaving ${samePurpose}dbOrders as is.`);
