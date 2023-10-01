@@ -1,5 +1,6 @@
 const BinanceApi = require('./api/binance_api');
 const utils = require('../helpers/utils');
+const config = require('./../modules/configReader');
 
 /**
  * API endpoints:
@@ -146,7 +147,8 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         getFundHistoryImplemented: false,
         allowAmountForMarketBuy: true,
         amountForMarketOrderNecessary: pair ? !this.marketInfo(pair)?.quoteOrderQtyMarketAllowed : false,
-        orderNumberLimit: pair ? this.marketInfo(pair)?.maxNumOrders : DEFAULT_MAX_NUM_ORDERS,
+        orderNumberLimit: config.exchange_restrictions.orderNumberLimit ||
+            (pair ? this.marketInfo(pair)?.maxNumOrders : DEFAULT_MAX_NUM_ORDERS),
       };
     },
 

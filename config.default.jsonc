@@ -1,15 +1,15 @@
 {
   /**
-    The bot's secret passphrase. Create separate ADM account for the bot.
-    Bot's ADM address will correspond this passphrase.
+    The bot's secret passphrase. Create a separate ADM account for the bot.
+    Bot's ADM address will correspond to this passphrase.
     You'll contact this address via ADAMANT Messenger to manage the bot.
   **/
   "passPhrase": "distance expect praise frequent..",
 
   /**
-    List of nodes to connect to ADAMANT blockchain.
+    List of nodes to connect to the ADAMANT blockchain.
     It ensures secure communication with the bot.
-    If one become unavailable, bot will choose live one.
+    If one becomes unavailable, the bot will choose a live one.
   **/
   "node_ADM": [
     "https://bid.adamant.im",
@@ -40,7 +40,7 @@
     "U123.."
   ],
 
-  /** Notify non-admins that they are not admins. If false, bot will be silent. **/
+  /** Notify non-admins that they are not admins. If false, the bot will be silent. **/
   "notify_non_admins": false,
 
   /** List of supported exchanges **/
@@ -59,6 +59,12 @@
 
   /** Pair to trade in regular Base/Quote format **/
   "pair": "ADM/USDT",
+
+  /** Exchange's custom restrictions to override `traderapi.features()`, if you have a special account **/
+  "exchange_restrictions": {
+    /** Max number of open orders. Set 'false' to skip **/
+    "orderNumberLimit": false
+  },
 
   /** Exchange's account API key for connection **/
   "apikey": "YOUR-KEY..",
@@ -105,14 +111,14 @@
 
     /**
       Enables health API
-      Allows to check if bot is running with http://ip:port/ping
+      Allows to check if a bot is running with http://ip:port/ping
     **/
     "health": false,
 
     /**
       Enables debug API
       Do not set for live bots, use only for debugging.
-      Allows to get DBs records like http://ip:port/db?tb=incomingTxsDb
+      Allows to get DB records like http://ip:port/db?tb=incomingTxsDb
     **/
     "debug": false
   },
