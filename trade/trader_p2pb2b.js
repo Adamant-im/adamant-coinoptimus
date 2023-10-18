@@ -358,7 +358,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         coin2Amount = +(+coin2Amount).toFixed(marketInfo.coin2Decimals);
       }
       if (price) {
-        price = +(+price).toFixed(marketInfo.coin2Decimals);
+        price = (+price).toFixed(marketInfo.coin2Decimals);
       }
 
       if (coin1Amount < marketInfo.coin1MinAmount) {
