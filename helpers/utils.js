@@ -1562,7 +1562,7 @@ module.exports = {
     const diff = [];
 
     b.forEach((obj2) => {
-      obj1 = a.filter((crypto) => crypto.code === obj2.code)[0];
+      const obj1 = a.filter((crypto) => crypto.code === obj2.code)[0];
       if (!obj1) {
         a.push({
           code: obj2.code,
