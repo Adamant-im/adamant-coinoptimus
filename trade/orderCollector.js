@@ -2,7 +2,16 @@ const constants = require('../helpers/const');
 const db = require('../modules/DB');
 const config = require('../modules/config/reader');
 const log = require('../helpers/log');
-const traderapi = require('./trader_' + config.exchange)(config.apikey, config.apisecret, config.apipassword, log);
+const traderapi = require('./trader_' + config.exchange)(
+    config.apikey,
+    config.apisecret,
+    config.apipassword,
+    log,
+    undefined,
+    undefined,
+    config.exchange_socket,
+    config.exchange_socket_pull,
+);
 const orderUtils = require('./orderUtils');
 const utils = require('../helpers/utils');
 
@@ -176,6 +185,7 @@ module.exports = {
         isProcessed: false,
         pair: pair || config.pair,
         exchange: config.exchange,
+        isSecondAccountOrder: api.isSecondAccount ? true : { $ne: true },
       };
       if (purposes !== 'all') {
         orderFilter.purpose = { $in: purposes };
@@ -281,11 +291,11 @@ module.exports = {
       logMessage = '';
       if (ordersToClear.length) {
         const pairObj = orderUtils.parseMarket(pair);
+
         let ladderClearedString = '';
+        const purposesIncludesLadder = ordersString.includes('ld') || purposes === 'all';
 
         if (clearedOrdersSuccess.length) {
-          const purposesIncludesLadder = ordersString.includes('ld') || purposes === 'all';
-
           if (clearedOrdersLadder.length && purposesIncludesLadder) {
             ladderClearedString = ` ${clearedOrdersLadder.length} of them are ld-orders, kept in DB in cancelled state.`;
           }
@@ -298,8 +308,6 @@ module.exports = {
         }
 
         if (clearedOrdersOnlyMarked.length) {
-          ladderClearedString = '';
-
           if (clearedOrdersOnlyMarkedLadder.length && purposesIncludesLadder) {
             ladderClearedString = ` ${clearedOrdersOnlyMarkedLadder.length} of them are ld-orders, kept in DB in filled state.`;
           }
@@ -355,6 +363,7 @@ module.exports = {
         isProcessed: false,
         pair: pair || config.pair,
         exchange: config.exchange,
+        isSecondAccountOrder: api.isSecondAccount ? true : { $ne: true },
       };
       let orderTypeString = '';
       if (orderType) {
@@ -364,7 +373,7 @@ module.exports = {
 
       dbOrders = await ordersDb.find(orderFilter);
       const totalOrdersCountBeforeUpdate = dbOrders.length;
-      dbOrders = await orderUtils.updateOrders(dbOrders, pair || config.pair, utils.getModuleName(module.id)); // update orders which partially filled or not found
+      dbOrders = await orderUtils.updateOrders(dbOrders, pair || config.pair, utils.getModuleName(module.id), undefined, api); // update orders which partially filled or not found
       const totalOrdersCountAfterUpdate = dbOrders.length;
 
       const dbOrderIds = dbOrders.map((order) => {
