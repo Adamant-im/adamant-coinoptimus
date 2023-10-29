@@ -85,12 +85,28 @@ module.exports = function() {
   };
 
   /**
+   * Creates an url params string as: key1=value1&key2=value2
+   * @param {Object} data Request params
+   * @returns {String}
+   */
+  function getParamsString(data) {
+    const params = [];
+
+    for (const key in data) {
+      const v = data[key];
+      params.push(key + '=' + v);
+    }
+
+    return params.join('&');
+  }
+
+  /**
    * Creates a full url with params as https://data.azbit.com/api/endpoint?key1=value1&key2=value2
    * @param {Object} data Request params
    * @returns {String}
    */
   function getUrlWithParams(url, data) {
-    const queryString = utils.getParamsString(data);
+    const queryString = getParamsString(data);
 
     if (queryString) {
       url = url + '?' + queryString;
@@ -109,7 +125,7 @@ module.exports = function() {
     let url = `${WEB_BASE}${path}`;
     const urlBase = url;
 
-    const queryString = utils.getParamsString(data);
+    const queryString = getParamsString(data);
     url = getUrlWithParams(url, data);
 
     return new Promise((resolve, reject) => {
@@ -138,10 +154,12 @@ module.exports = function() {
 
     let headers;
     let bodyString;
+    let queryString;
 
     try {
       if (method === 'get') {
         bodyString = '';
+        queryString = getParamsString(data);
         url = getUrlWithParams(url, data);
       } else {
         bodyString = getBody(data);
@@ -169,8 +187,8 @@ module.exports = function() {
       };
 
       axios(httpOptions)
-          .then((response) => handleResponse(response, resolve, reject, bodyString, undefined, urlBase))
-          .catch((error) => handleResponse(error, resolve, reject, bodyString, undefined, urlBase));
+          .then((response) => handleResponse(response, resolve, reject, bodyString, queryString, urlBase))
+          .catch((error) => handleResponse(error, resolve, reject, bodyString, queryString, urlBase));
     });
   }
 

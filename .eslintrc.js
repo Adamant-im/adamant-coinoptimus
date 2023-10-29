@@ -19,7 +19,7 @@ module.exports = {
     'quote-props': ['error', 'as-needed'],
     'object-curly-spacing': ['error', 'always'],
     'max-len': ['error',
-      { code: 131,
+      { code: 133,
         ignoreTrailingComments: true,
         ignoreComments: true,
         ignoreUrls: true,

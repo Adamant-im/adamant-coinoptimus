@@ -30,5 +30,4 @@ mongoClient.connect()
       process.exit(-1);
     });
 
-
 module.exports = collections;

@@ -17,9 +17,26 @@ const pendingConfirmation = {
   timestamp: 0,
 };
 
-// stored for each senderId
-const previousBalances = [{}, {}, {}]; // stored for each account and both as well (for two-keys trading)
-const previousOrders = [{}, {}]; // stored for each account as well (for two-keys trading)
+
+const previousBalances = [
+  {}, // balances of the first trade account
+  {}, // balances of the second trade account
+  {}, // sum of balances for both trade accounts
+];
+/*
+  accountNo -> userId -> balances object
+  {
+    userId: {
+      timestamp,
+      balances: balances for userId/senderId @timestamp
+    }
+  }
+*/
+
+const previousOrders = [
+  {}, // orders of the first trade account
+  {}, // orders of the second trade account
+];
 
 module.exports = async (commandMsg, tx, itx) => {
   let commandResult = {};
@@ -62,7 +79,7 @@ module.exports = async (commandMsg, tx, itx) => {
       itx.update({ isProcessed: true }, true);
     }
 
-    utils.saveConfig();
+    utils.saveConfig(false, 'After-commandTxs()');
 
   } catch (e) {
     tx = tx || {};
