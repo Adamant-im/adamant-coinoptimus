@@ -165,9 +165,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       try {
         data = await binanceApiClient.getBalances();
       } catch (error) {
-        return log.warn(
-            `API request getBalances(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`
-        );
+        return log.warn(`API request getBalances(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
       }
 
       try {

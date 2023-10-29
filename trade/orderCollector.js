@@ -8,9 +8,9 @@ const utils = require('../helpers/utils');
 
 module.exports = {
   orderPurposes: {
-    'ld': 'Ladder',
-    'man': 'Manual', // manually placed order with /buy & /sell commands
-    'all': 'All types',
+    ld: 'Ladder',
+    man: 'Manual', // manually placed order with /buy & /sell commands
+    all: 'All types',
     // unk: unknown order (not in the local bot's database)
   },
 
@@ -42,7 +42,7 @@ module.exports = {
         order = await ordersDb.findOne({
           _id: orderId,
           exchange: config.exchange,
-          pair: pair,
+          pair,
           isSecondAccountOrder: api.isSecondAccount ? true : { $ne: true },
         });
 
@@ -56,7 +56,7 @@ module.exports = {
       if (order) {
         orderType = order.type;
 
-        subPurposeString = '';
+        let subPurposeString = '';
         if (order.subPurpose) {
           subPurposeString = order.subPurpose === 'ss' ? '(spread support)' : '(depth)';
         }
@@ -65,19 +65,19 @@ module.exports = {
 
         if (isOrderFoundById) {
           if (order.isProcessed) {
-            note = ` Note: this order is found in the ordersDb by ID and already marked as processed.`;
+            note = ' Note: this order is found in the ordersDb by ID and already marked as processed.';
           } else {
-            note = ` Note: this order is found in the ordersDb by ID.`;
+            note = ' Note: this order is found in the ordersDb by ID.';
           }
         } else {
           if (order.isProcessed) {
-            note = ` Note: this order is already marked as processed in the ordersDb.`;
+            note = ' Note: this order is already marked as processed in the ordersDb.';
           }
         }
       } else {
         orderInfoString = `order${onWhichAccount} with id=${orderId}, type=${orderType}, pair=${pair}`;
 
-        note = ` Note: this order was not found in the ordersDb.`;
+        note = ' Note: this order was not found in the ordersDb.';
       }
 
       let reasonToCloseString = '';
@@ -104,7 +104,7 @@ module.exports = {
 
         if (cancelReq) {
           if (order) {
-            ordersDbString = ` Also marked it as cancelled in the ordersDb.`;
+            ordersDbString = ' Also marked it as cancelled in the ordersDb.';
 
             order?.update({
               isCancelled: true,
@@ -114,14 +114,14 @@ module.exports = {
           log.log(`Order collector: Successfully cancelled ${orderInfoString}${reasonToCloseString}.${ordersDbString}`);
         } else {
           if (order) {
-            ordersDbString = ` Marking it as closed in the ordersDb.`;
+            ordersDbString = ' Marking it as closed in the ordersDb.';
           }
 
           log.log(`Order collector: Unable to cancel ${orderInfoString}. Probably it doesn't exist anymore.${ordersDbString}`);
         }
       } else {
         if (order) {
-          ordersDbString = ` Keeping this order in the ordersDb.`;
+          ordersDbString = ' Keeping this order in the ordersDb.';
         }
 
         log.warn(`Order collector: Request to cancel ${orderInfoString} failed.${ordersDbString}`);
@@ -184,7 +184,7 @@ module.exports = {
         orderFilter.type = orderType;
       }
       Object.assign(orderFilter, filter);
-      ordersToClear = await ordersDb.find(orderFilter);
+      let ordersToClear = await ordersDb.find(orderFilter);
 
       const orderCountAll = ordersToClear.length;
       ordersToClear = ordersToClear.filter((order) => order.purpose !== 'ld' || constants.LADDER_OPENED_STATES.includes(order.ladderState));
@@ -273,7 +273,7 @@ module.exports = {
               log.log(`Order collector: Request to cancel ${orderInfoString} failed. Will try next time, keeping this order in the DB for now.`);
             }
           }
-        };
+        }
 
         notFinished = doForce && ordersToClear.length > clearedOrdersAll.length && tries < MAX_TRIES;
       } while (notFinished);
@@ -281,9 +281,9 @@ module.exports = {
       logMessage = '';
       if (ordersToClear.length) {
         const pairObj = orderUtils.parseMarket(pair);
-        if (clearedOrdersSuccess.length) {
-          let ladderClearedString = '';
+        let ladderClearedString = '';
 
+        if (clearedOrdersSuccess.length) {
           const purposesIncludesLadder = ordersString.includes('ld') || purposes === 'all';
 
           if (clearedOrdersLadder.length && purposesIncludesLadder) {
@@ -296,6 +296,7 @@ module.exports = {
         } else {
           logMessage += `No ${ordersStringForLog} of total ${ordersToClear.length} were cancelled.`;
         }
+
         if (clearedOrdersOnlyMarked.length) {
           ladderClearedString = '';
 
@@ -403,7 +404,7 @@ module.exports = {
                 }
               }
             }
-          };
+          }
 
           notFinished = doForce && totalOrdersToClearCount > clearedOrders.length && tries < MAX_TRIES;
         } while (notFinished);

@@ -17,7 +17,6 @@ const pendingConfirmation = {
   timestamp: 0,
 };
 
-
 const previousBalances = [
   {}, // balances of the first trade account
   {}, // balances of the second trade account
@@ -51,7 +50,7 @@ module.exports = async (commandMsg, tx, itx) => {
         .trim()
         .replace(/ {2,}/g, ' ')
         .split(' ');
-    let commandName = group.shift().trim().toLowerCase().replace('\/', '');
+    let commandName = group.shift().trim().toLowerCase().replace('/', '');
 
     const alias = aliases[commandName];
     if (alias) {
@@ -60,7 +59,7 @@ module.exports = async (commandMsg, tx, itx) => {
           .trim()
           .replace(/ {2,}/g, ' ')
           .split(' ');
-      commandName = group.shift().trim().toLowerCase().replace('\/', '');
+      commandName = group.shift().trim().toLowerCase().replace('/', '');
     }
 
     const command = commands[commandName];
@@ -1061,7 +1060,6 @@ async function stats(params) {
 
     // First, get exchange 24h stats on pair: volume, low, high, spread
     const exchangeRates = await traderapi.getRates(pairObj.pair);
-    const totalVolume24 = +exchangeRates?.volume;
     if (exchangeRates) {
       let volumeInCoin2String = '';
       if (exchangeRates.volumeInCoin2) {
@@ -1456,7 +1454,7 @@ async function getBalancesInfo(accountNo = 0, tx, isWebApi = false, params, user
           orderUtils.parseMarket(config.pair),
       );
 
-      previousBalances[accountNo][userId] = { timestamp: Date.now(), balances: balances };
+      previousBalances[accountNo][userId] = { timestamp: Date.now(), balances };
     }
   } catch (e) {
     log.error(`Error in getBalancesInfo() of ${utils.getModuleName(module.id)} module: ` + e);
