@@ -1,7 +1,7 @@
 const BitfinexApi = require('./api/bitfinex_api');
 const utils = require('../helpers/utils');
 const _networks = require('../helpers/networks');
-const config = require('./../modules/configReader');
+const config = require('../modules/config/reader');
 
 // API endpoints:
 const apiPublicServer = 'https://api-pub.bitfinex.com';

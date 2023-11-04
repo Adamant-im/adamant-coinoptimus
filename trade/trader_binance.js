@@ -1,6 +1,6 @@
 const BinanceApi = require('./api/binance_api');
 const utils = require('../helpers/utils');
-const config = require('./../modules/configReader');
+const config = require('../modules/config/reader');
 
 /**
  * API endpoints:
