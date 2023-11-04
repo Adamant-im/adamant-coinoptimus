@@ -147,7 +147,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         getFundHistoryImplemented: false,
         allowAmountForMarketBuy: true,
         amountForMarketOrderNecessary: pair ? !this.marketInfo(pair)?.quoteOrderQtyMarketAllowed : false,
-        orderNumberLimit: config.exchange_restrictions.orderNumberLimit ||
+        orderNumberLimit: config.exchange_restrictions?.orderNumberLimit ||
             (pair ? this.marketInfo(pair)?.maxNumOrders : DEFAULT_MAX_NUM_ORDERS),
       };
     },

@@ -490,7 +490,7 @@ module.exports = (
         getFundHistoryImplemented: false,
         allowAmountForMarketBuy: true,
         amountForMarketOrderNecessary: true,
-        orderNumberLimit: config.exchange_restrictions.orderNumberLimit || 100,
+        orderNumberLimit: config.exchange_restrictions?.orderNumberLimit || 100,
         supportCoinNetworks: true,
       };
     },
