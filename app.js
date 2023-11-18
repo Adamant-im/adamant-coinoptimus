@@ -28,7 +28,9 @@ function init() {
       checker();
       require('./trade/co_ladder').run();
       require('./trade/co_test').test();
-      notify(`*${config.notifyName} started* for address _${config.address}_ (ver. ${config.version}).`, 'info');
+
+      const addressInfo = config.address ? ` for address _${config.address}_` : ' in CLI mode';
+      notify(`${config.notifyName} *started*${addressInfo} (${config.projectBranch}, v${config.version}).`, 'info');
     }
   } catch (e) {
     notify(`${config.notifyName} is not started. Error: ${e}`, 'error');
