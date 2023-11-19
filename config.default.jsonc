@@ -88,7 +88,7 @@
   "bot_name": "",
 
   /** How to reply to user in-chat if the first unknown command is received. **/
-  "welcome_string": "Hi! 😊 I'm the {bot_name} trade and market-making bot. ℹ️ Learn more on https://marketmaking.app or type **/help**.",
+  "welcome_string": "Hi! 😊 I'm the {bot_name} trading bot. ℹ️ Learn more on https://marketmaking.app or type **/help**.",
 
   /** ADAMANT addresses for notifications and monitoring. Optional. **/
   "adamant_notify": [""],
