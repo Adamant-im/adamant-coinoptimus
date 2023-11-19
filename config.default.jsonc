@@ -132,6 +132,18 @@
     "debug": false
   },
 
+  /**
+    Server:Port for communication across the bots on different exchanges and pairs.
+    Set 'false' to disable.
+  **/
+  "com_server": false,
+
+  /**
+    The secret key for encrypting and decrypting messages between bot and comServer.
+    Set the same key in the '.env' file of comServer.
+  **/
+  "com_server_secret_key": "",
+
   /** Minimal amount of USDT to confirm buy/sell/fill commands **/
   "amount_to_confirm_usd": 100
 }

@@ -92,7 +92,7 @@ npm i
 
 Update `config.jsonc` if `config.default.jsonc` changed.
 
-Then `pm2 restart tradebot`.
+Then `pm2 restart coinoptimus`.
 
 ## Commands and starting a strategy
 

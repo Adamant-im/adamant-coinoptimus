@@ -4,6 +4,7 @@ const checker = require('./modules/checkerTransactions');
 const doClearDB = process.argv.includes('clear_db');
 const config = require('./modules/config/reader');
 const txParser = require('./modules/incomingTxsParser');
+const { botInterchange } = require('./modules/botInterchange');
 const { initApi } = require('./routes/init');
 
 // Socket connection
@@ -16,6 +17,12 @@ function init() {
   try {
     if (config.api?.port) {
       initApi();
+    }
+
+    // Comserver init
+    if (config.com_server) {
+      botInterchange.connect();
+      botInterchange.initHandlers();
     }
 
     if (doClearDB) {
