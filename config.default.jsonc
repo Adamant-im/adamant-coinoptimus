@@ -51,7 +51,8 @@
     "StakeCube",
     "Bitfinex",
     "Bittrex",
-    "Coinstore"
+    "Coinstore",
+    "FameEX"
   ],
 
   /** Exchange to work with. Case insensitive. **/
