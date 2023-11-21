@@ -1,4 +1,13 @@
 module.exports = {
+  cli: {
+    type: Boolean,
+    default: false,
+  },
+  secret_key: {
+    type: String,
+    default: '',
+    isRequired: false,
+  },
   passPhrase: {
     type: String,
     isRequired: true,
@@ -22,6 +31,17 @@ module.exports = {
   pair: {
     type: String,
     isRequired: true,
+  },
+  fund_supplier: {
+    type: Object,
+    default: {
+      enabled: false,
+      coins: [],
+    },
+  },
+  clearAllOrdersInterval: {
+    type: Number,
+    default: 0,
   },
   apikey: {
     type: String,
@@ -49,11 +69,11 @@ module.exports = {
   },
   ws_type: {
     type: String,
-    isRequired: true,
+    default: 'ws',
   },
   bot_name: {
     type: String,
-    isRequired: true,
+    default: '',
   },
   adamant_notify: {
     type: [String],
@@ -71,6 +91,30 @@ module.exports = {
     type: [String],
     default: [],
   },
+  telegram: {
+    type: [String],
+    default: [],
+  },
+  telegram_priority: {
+    type: [String],
+    default: [],
+  },
+  email_notify: {
+    type: [String],
+    default: [],
+  },
+  email_priority: {
+    type: [String],
+    default: [],
+  },
+  email_notify_aggregate_min: {
+    type: Number,
+    default: false,
+  },
+  email_smtp: {
+    type: Object,
+    default: {},
+  },
   silent_mode: {
     type: Boolean,
     default: false,
@@ -79,28 +123,38 @@ module.exports = {
     type: String,
     default: 'log',
   },
+  webui_accounts: {
+    type: [Object],
+    default: [],
+  },
+  webui: {
+    type: Number,
+  },
   welcome_string: {
     type: String,
     default: 'Hello 😊. This is a stub. I have nothing to say. Please check my config.',
   },
   api: {
-    type: {
-      port: {
-        type: Number,
-        isRequired: true,
-      },
-      health: {
-        type: Boolean,
-        default: false,
-      },
-      debug: {
-        type: Boolean,
-        default: false,
-      },
-    },
+    type: Object,
+    default: {},
+  },
+  com_server: {
+    type: String,
+    default: false,
+  },
+  com_server_secret_key: {
+    type: String,
   },
   amount_to_confirm_usd: {
     type: Number,
     default: 100,
+  },
+  exchange_socket: {
+    type: Boolean,
+    default: false,
+  },
+  exchange_socket_pull: {
+    type: Boolean,
+    default: false,
   },
 };

@@ -6,7 +6,14 @@ const utils = require('../helpers/utils');
 const apiServer = 'https://api.p2pb2b.com';
 const exchangeName = 'P2PB2B';
 
-module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = true) => {
+module.exports = (
+    apiKey,
+    secretKey,
+    pwd,
+    log,
+    publicOnly = false,
+    loadMarket = true,
+) => {
   const P2PB2BClient = P2PB2B();
 
   P2PB2BClient.setConfig(apiServer, apiKey, secretKey, pwd, log, publicOnly);
@@ -25,7 +32,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
     module.exports.gettingMarkets = true;
 
     return new Promise((resolve, reject) => {
-      P2PB2BClient.markets().then(function(data) {
+      P2PB2BClient.markets().then((data) => {
         try {
           if (!data.success) {
             throw new Error(`Request failed with data ${JSON.stringify(data)}.`);
@@ -68,7 +75,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         } catch (e) {
           log.warn(`Error while processing getMarkets(${paramString}) request: ${e}`);
           resolve(undefined);
-        };
+        }
       }).catch((err) => {
         log.warn(`API request getMarkets(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
         resolve(undefined);
@@ -96,7 +103,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         getFundHistoryImplemented: false,
         allowAmountForMarketBuy: false,
         amountForMarketOrderNecessary: false,
-        openOrdersCacheSec: 60, // P2PB2B exchange say cache time is ~5 sec, but it's not true. Real cache time is unknown.
+        openOrdersCacheSec: 180, // P2PB2B exchange say cache time is ~5 sec, but it's not true. Real cache time is unknown.
       };
     },
 
@@ -104,7 +111,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       const paramString = `nonzero: ${nonzero}`;
 
       return new Promise((resolve, reject) => {
-        P2PB2BClient.getBalances().then(function(data) {
+        P2PB2BClient.getBalances().then((data) => {
           try {
             if (!data.success) {
               throw new Error(`Request failed with data ${JSON.stringify(data)}.`);
@@ -130,7 +137,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
           } catch (e) {
             log.warn(`Error while processing getBalances(${paramString}) request: ${e}`);
             resolve(undefined);
-          };
+          }
         }).catch((err) => {
           log.warn(`API request getBalances(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
           resolve(undefined);
@@ -278,7 +285,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       const pair_ = formatPairName(pair);
 
       return new Promise((resolve, reject) => {
-        P2PB2BClient.cancelOrder(orderId, pair_.pair).then(function(data) {
+        P2PB2BClient.cancelOrder(orderId, pair_.pair).then((data) => {
           if (data?.success && data?.result?.orderId) {
             log.log(`Cancelling order ${data.result.orderId} on ${pair_.pairReadable} pair…`);
             resolve(true);
@@ -299,13 +306,13 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       const pair_ = formatPairName(pair);
 
       return new Promise((resolve, reject) => {
-        P2PB2BClient.ticker(pair_.pair).then(function(data) {
+        P2PB2BClient.ticker(pair_.pair).then((data) => {
           try {
             if (!data.success) {
               throw new Error(`Request failed with data ${JSON.stringify(data)}.`);
             }
 
-            ticker = data.result;
+            const ticker = data.result;
 
             resolve({
               ask: +ticker.ask,
@@ -318,7 +325,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
           } catch (e) {
             log.warn(`Error while processing getRates(${paramString}) request: ${e}`);
             resolve(undefined);
-          };
+          }
         }).catch((err) => {
           log.warn(`API request getRates(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
           resolve(undefined);
@@ -384,7 +391,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         output = `${orderType} ${coin1Amount} ${marketInfo.coin1} at ${price} ${marketInfo.coin2}.`;
 
         return new Promise((resolve, reject) => {
-          P2PB2BClient.addOrder(marketInfo.pairPlain, coin1Amount, price, orderType).then(function(data) {
+          P2PB2BClient.addOrder(marketInfo.pairPlain, coin1Amount, price, orderType).then((data) => {
             try {
               const result = data.result;
 
@@ -407,7 +414,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
               order.orderId = false;
               order.message = message;
               resolve(order);
-            };
+            }
           }).catch((err) => {
             log.warn(`API request addOrder(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
             resolve(undefined);
@@ -428,7 +435,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       const pair_ = formatPairName(pair);
 
       return new Promise((resolve, reject) => {
-        P2PB2BClient.orderBook(pair_.pair).then(function(data) {
+        P2PB2BClient.orderBook(pair_.pair).then((data) => {
           try {
             if (!data.success) {
               throw new Error(`Request failed with data ${JSON.stringify(data)}.`);
@@ -449,7 +456,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
                 type: 'ask-sell-right',
               });
             });
-            result.asks.sort(function(a, b) {
+            result.asks.sort((a, b) => {
               return parseFloat(a.price) - parseFloat(b.price);
             });
 
@@ -461,7 +468,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
                 type: 'bid-buy-left',
               });
             });
-            result.bids.sort(function(a, b) {
+            result.bids.sort((a, b) => {
               return parseFloat(b.price) - parseFloat(a.price);
             });
 
@@ -469,7 +476,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
           } catch (e) {
             log.warn(`Error while processing orderBook(${paramString}) request: ${e}`);
             resolve(undefined);
-          };
+          }
         }).catch((err) => {
           log.warn(`API request getOrderBook(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}`);
           resolve(undefined);
@@ -482,7 +489,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
       const pair_ = formatPairName(pair);
 
       return new Promise((resolve, reject) => {
-        P2PB2BClient.getTradesHistory(pair_.pair, undefined, limit).then(function(data) {
+        P2PB2BClient.getTradesHistory(pair_.pair, undefined, limit).then((data) => {
           try {
             if (!data.success) {
               throw new Error(`Request failed with data ${JSON.stringify(data)}.`);
@@ -504,7 +511,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
             });
 
             // We need ascending sort order
-            result.sort(function(a, b) {
+            result.sort((a, b) => {
               return parseFloat(a.date) - parseFloat(b.date);
             });
 
@@ -512,7 +519,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
           } catch (e) {
             log.warn(`Error while processing getTradesHistory(${paramString}) request: ${e}`);
             resolve(undefined);
-          };
+          }
         }).catch((err) => {
           log.log(`API request getTradesHistory(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${err}.`);
           resolve(undefined);

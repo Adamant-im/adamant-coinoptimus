@@ -17,9 +17,25 @@ const pendingConfirmation = {
   timestamp: 0,
 };
 
-// stored for each senderId
-const previousBalances = [{}, {}, {}]; // stored for each account and both as well (for two-keys trading)
-const previousOrders = [{}, {}]; // stored for each account as well (for two-keys trading)
+const previousBalances = [
+  {}, // balances of the first trade account
+  {}, // balances of the second trade account
+  {}, // sum of balances for both trade accounts
+];
+/*
+  accountNo -> userId -> balances object
+  {
+    userId: {
+      timestamp,
+      balances: balances for userId/senderId @timestamp
+    }
+  }
+*/
+
+const previousOrders = [
+  {}, // orders of the first trade account
+  {}, // orders of the second trade account
+];
 
 module.exports = async (commandMsg, tx, itx) => {
   let commandResult = {};
@@ -34,7 +50,7 @@ module.exports = async (commandMsg, tx, itx) => {
         .trim()
         .replace(/ {2,}/g, ' ')
         .split(' ');
-    let commandName = group.shift().trim().toLowerCase().replace('\/', '');
+    let commandName = group.shift().trim().toLowerCase().replace('/', '');
 
     const alias = aliases[commandName];
     if (alias) {
@@ -43,7 +59,7 @@ module.exports = async (commandMsg, tx, itx) => {
           .trim()
           .replace(/ {2,}/g, ' ')
           .split(' ');
-      commandName = group.shift().trim().toLowerCase().replace('\/', '');
+      commandName = group.shift().trim().toLowerCase().replace('/', '');
     }
 
     const command = commands[commandName];
@@ -62,7 +78,7 @@ module.exports = async (commandMsg, tx, itx) => {
       itx.update({ isProcessed: true }, true);
     }
 
-    utils.saveConfig();
+    utils.saveConfig(false, 'After-commandTxs()');
 
   } catch (e) {
     tx = tx || {};
@@ -1044,7 +1060,6 @@ async function stats(params) {
 
     // First, get exchange 24h stats on pair: volume, low, high, spread
     const exchangeRates = await traderapi.getRates(pairObj.pair);
-    const totalVolume24 = +exchangeRates?.volume;
     if (exchangeRates) {
       let volumeInCoin2String = '';
       if (exchangeRates.volumeInCoin2) {
@@ -1439,7 +1454,7 @@ async function getBalancesInfo(accountNo = 0, tx, isWebApi = false, params, user
           orderUtils.parseMarket(config.pair),
       );
 
-      previousBalances[accountNo][userId] = { timestamp: Date.now(), balances: balances };
+      previousBalances[accountNo][userId] = { timestamp: Date.now(), balances };
     }
   } catch (e) {
     log.error(`Error in getBalancesInfo() of ${utils.getModuleName(module.id)} module: ` + e);
