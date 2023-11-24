@@ -4,6 +4,7 @@ const checker = require('./modules/checkerTransactions');
 const doClearDB = process.argv.includes('clear_db');
 const config = require('./modules/config/reader');
 const txParser = require('./modules/incomingTxsParser');
+const { botInterchange } = require('./modules/botInterchange');
 const { initApi } = require('./routes/init');
 
 // Socket connection
@@ -18,6 +19,12 @@ function init() {
       initApi();
     }
 
+    // Comserver init
+    if (config.com_server) {
+      botInterchange.connect();
+      botInterchange.initHandlers();
+    }
+
     if (doClearDB) {
       console.log('Clearing database…');
       db.systemDb.db.drop();
@@ -28,7 +35,9 @@ function init() {
       checker();
       require('./trade/co_ladder').run();
       require('./trade/co_test').test();
-      notify(`*${config.notifyName} started* for address _${config.address}_ (ver. ${config.version}).`, 'info');
+
+      const addressInfo = config.address ? ` for address _${config.address}_` : ' in CLI mode';
+      notify(`${config.notifyName} *started*${addressInfo} (${config.projectBranch}, v${config.version}).`, 'info');
     }
   } catch (e) {
     notify(`${config.notifyName} is not started. Error: ${e}`, 'error');

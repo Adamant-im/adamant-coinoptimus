@@ -1,15 +1,15 @@
 {
   /**
-    The bot's secret passphrase. Create separate ADM account for the bot.
-    Bot's ADM address will correspond this passphrase.
+    The bot's secret passphrase. Create a separate ADM account for the bot.
+    Bot's ADM address will correspond to this passphrase.
     You'll contact this address via ADAMANT Messenger to manage the bot.
   **/
   "passPhrase": "distance expect praise frequent..",
 
   /**
-    List of nodes to connect to ADAMANT blockchain.
+    List of nodes to connect to the ADAMANT blockchain.
     It ensures secure communication with the bot.
-    If one become unavailable, bot will choose live one.
+    If one becomes unavailable, the bot will choose a live one.
   **/
   "node_ADM": [
     "https://bid.adamant.im",
@@ -40,7 +40,7 @@
     "U123.."
   ],
 
-  /** Notify non-admins that they are not admins. If false, bot will be silent. **/
+  /** Notify non-admins that they are not admins. If false, the bot will be silent. **/
   "notify_non_admins": false,
 
   /** List of supported exchanges **/
@@ -51,7 +51,8 @@
     "StakeCube",
     "Bitfinex",
     "Bittrex",
-    "Coinstore"
+    "Coinstore",
+    "FameEX"
   ],
 
   /** Exchange to work with. Case insensitive. **/
@@ -60,20 +61,35 @@
   /** Pair to trade in regular Base/Quote format **/
   "pair": "ADM/USDT",
 
+  /** Exchange's custom restrictions to override `traderapi.features()`, if you have a special account **/
+  "exchange_restrictions": {
+    /** Max number of open orders. Set 'false' to skip **/
+    "orderNumberLimit": false
+  },
+
+  /**
+    A short name which helps you to understand which exchange account you use.
+    Letters and digits only.
+  **/
+  "account": "acc1",
+
   /** Exchange's account API key for connection **/
   "apikey": "YOUR-KEY..",
 
   /** Exchange's account API secret for connection **/
   "apisecret": "YOUR-SECRET..",
 
-  /** Exchange's account trade password (if required by exchange) **/
+  /** Exchange's account trade password or memo (if required by exchange) **/
   "apipassword": "YOUR-TRADE-PASS",
 
-  /** How to reply to admin in-chat, if first unknown command received **/
-  "welcome_string": "Hi! 😊 I'm a CoinOptimus trade bot. ℹ️ Learn more on https://github.com/Adamant-im/adamant-coinoptimus or type **/help**.",
+  /** Override project name for notifications. Letters, digits, - and ~ only. By default, it's derived from a repository name, CoinOptimus. **/
+  "project_name": "",
 
-  /** Bot's name for notifications **/
-  "bot_name": "Lovely CoinOptimus Bot",
+  /** Bot's name for notifications. Keep it empty if you want the default format ADM/USDT@Coinstore-acc1 CoinOptimus **/
+  "bot_name": "",
+
+  /** How to reply to user in-chat if the first unknown command is received. **/
+  "welcome_string": "Hi! 😊 I'm the {bot_name} trading bot. ℹ️ Learn more on https://marketmaking.app or type **/help**.",
 
   /** ADAMANT addresses for notifications and monitoring. Optional. **/
   "adamant_notify": [""],
@@ -105,17 +121,29 @@
 
     /**
       Enables health API
-      Allows to check if bot is running with http://ip:port/ping
+      Allows to check if a bot is running with http://ip:port/ping
     **/
     "health": false,
 
     /**
       Enables debug API
       Do not set for live bots, use only for debugging.
-      Allows to get DBs records like http://ip:port/db?tb=incomingTxsDb
+      Allows to get DB records like http://ip:port/db?tb=incomingTxsDb
     **/
     "debug": false
   },
+
+  /**
+    Server:Port for communication across the bots on different exchanges and pairs.
+    Set 'false' to disable.
+  **/
+  "com_server": false,
+
+  /**
+    The secret key for encrypting and decrypting messages between bot and comServer.
+    Set the same key in the '.env' file of comServer.
+  **/
+  "com_server_secret_key": "",
 
   /** Minimal amount of USDT to confirm buy/sell/fill commands **/
   "amount_to_confirm_usd": 100

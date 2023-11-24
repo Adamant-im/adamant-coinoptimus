@@ -19,6 +19,11 @@ const networks = {
     name: 'BNB Smart Chain',
     sampleAddress: '0xbe807dddb074639cd9fa61b47676c064fc50d62c',
   },
+  BNB: {
+    code: 'BNB',
+    name: 'BNB Chain',
+    sampleAddress: 'bnb1fnd0k5l4p3ck2j9x9dp36chk059w977pszdgdz',
+  },
   ERC20: {
     code: 'ERC20',
     name: 'Ethereum',
@@ -26,8 +31,15 @@ const networks = {
   },
   'AVAX-C-CHAIN': {
     code: 'AVAX-C-CHAIN',
+    altcode: 'AVAX-CCHAIN',
     name: 'Avalanche C-Chain',
     sampleAddress: '0xf41ca2e343a827403527c6b3c1fa91a9b134d45b',
+  },
+  'AVAX-X-CHAIN': {
+    code: 'AVAX-X-CHAIN',
+    altcode: 'AVAX-XCHAIN',
+    name: 'Avalanche X-Chain',
+    sampleAddress: 'X-avax1tzdcgj4ehsvhhgpl7zylwpw0gl2rxcg4r5afk5',
   },
   MATIC: {
     code: 'MATIC',
@@ -61,6 +73,7 @@ const networks = {
   },
   SOL: {
     code: 'SOL',
+    altcode: 'SPL',
     name: 'Solana',
     sampleAddress: '31Sof5r1xi7dfcaz4x9Kuwm8J9ueAdDduMcme59sP8gc',
   },
@@ -88,6 +101,36 @@ const networks = {
     code: 'ETC',
     name: 'Ethereum Classic',
     sampleAddress: '0xedeb94ef299920ed9cbae0f9f6a52d7bc744047dcbcdec5d2de5c1af32b9f75b',
+  },
+  OMNI: {
+    code: 'OMNI',
+    name: 'Omni',
+    sampleAddress: '1JKhrVV9EsgSS5crXLBo9BRVXyuHjf2Tcp',
+  },
+  CFX: {
+    code: 'CFX',
+    name: 'Conflux',
+    sampleAddress: '0x40f8572D3Edd04C869ECBab246d6Aee37A5B9b29',
+  },
+  FLOW: {
+    code: 'FLOW',
+    name: 'Flow',
+    sampleAddress: '0xbaf7ab7b36232a85',
+  },
+  MINA: {
+    code: 'MINA',
+    name: 'Mina',
+    sampleAddress: '0x2f32359c958af5548e4c2c74587fef67477baff3',
+  },
+  HARMONY: {
+    code: 'HARMONY',
+    name: 'Harmony',
+    sampleAddress: 'one1yxzn9gf28zdy4yhup30my2gp68qerx929rv2ns',
+  },
+  XLM: {
+    code: 'XLM',
+    name: 'Stellar',
+    sampleAddress: 'GB5A3OA657UWF3BN7WU4XFFWT333HFP2KFK2OFAXPEL3BBGQ7QLRNASG',
   },
 };
 

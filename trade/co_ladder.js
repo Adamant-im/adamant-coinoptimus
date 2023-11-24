@@ -147,7 +147,7 @@ module.exports = {
               orderStatusString = `, the status by API is _${orderStatus}_`;
 
               if (orderStatus) {
-                isOrderFilledByApi = ['part_filled', 'filled'].includes(orderStatus);
+                isOrderFilledByApi = orderStatus === 'filled';
                 isOrderNotFilledByApi = !isOrderFilledByApi;
               } else {
                 log.warn(`Ladder: Unable to receive ${orderInfo} status. Request result is ${JSON.stringify(orderDetails)}.`);
