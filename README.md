@@ -46,6 +46,7 @@ See trades history example with a 3% price step:
 * [Bittrex](https://global.bittrex.com/discover/join?referralCode=TGD-P0Z-F5W)
 * [Coinstore](https://h5.coinstore.com/h5/signup?invitCode=o951vZ)
 * [FameEX](https://www.fameex.com/en-US/commissiondispense?code=MKKAWV)
+* [NonKYC](https://nonkyc.io?ref=655b4df9eb13acde84677358)
 
 # Usage and Installation
 
