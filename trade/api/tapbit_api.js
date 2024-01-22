@@ -273,13 +273,15 @@ module.exports = function() {
      * Get open order list
      * https://www.tapbit.com/openapi-docs/spot/private/open_order_list/
      * @param {String} symbol In Tapbit format as BTC/USDT
-     * @param {String} [nextOrderId] Order ID, which is used in pagination. The default value is empty. The latest 20 pieces of data are returned and displayed in reverse order by order ID. Get the last order Id-1, take the next page of data.
+     * @param {String} [nextOrderId] Order ID, which is used in pagination. The default value is empty. The latest 20 pieces (upd: see 'limit') of data are returned and displayed in reverse order by order ID. Get the last order Id-1, take the next page of data.
+     * @param {Number} limit Not documented, but it's available. Max is 100.
      * @return {Promise<[]>}
      */
-    getOrders(symbol, nextOrderId) {
+    getOrders(symbol, nextOrderId, limit = 100) {
       const params = {
         instrument_id: symbol,
         next_order_id: nextOrderId,
+        limit,
       };
 
       return protectedRequest('get', '/api/v1/spot/open_order_list', params);
