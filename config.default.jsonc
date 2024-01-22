@@ -54,7 +54,8 @@
     "Coinstore",
     "FameEX",
     "NonKYC",
-    "XeggeX"
+    "XeggeX",
+    "Tapbit"
   ],
 
   /** Exchange to work with. Case insensitive. **/
