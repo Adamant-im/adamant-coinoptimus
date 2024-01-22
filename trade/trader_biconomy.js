@@ -27,11 +27,6 @@ module.exports = (
     log,
     publicOnly = false,
     loadMarket = true,
-    useSocket = false,
-    useSocketPull = false,
-    accountNo = 0,
-    coin1 = config.coin1,
-    coin2 = config.coin2,
 ) => {
   const biconomyApiClient = BiconomyAPI();
 
