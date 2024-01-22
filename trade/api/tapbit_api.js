@@ -9,6 +9,24 @@ const {
  * Docs: https://tapbit.com/openapi-docs/spot
  */
 
+// Error codes: https://www.tapbit.com/openapi-docs/spot/spot_errorcode/
+const httpErrorCodeDescriptions = {
+  4: { // 4XX
+    description: 'Wrong request content, behavior, format',
+  },
+  429: {
+    description: 'Warning access frequency exceeding the limit',
+    isTemporary: true,
+  },
+  5: { // 5XX
+    description: 'Problems on the Tapbit service side',
+    isTemporary: true,
+  },
+  504: {
+    description: 'API server has submitted a request to the business core but failed to get a response',
+  },
+};
+
 /**
  * Error codes:
  * isTemporary means that we consider the request is temporary failed and we'll repeat it later with success possibility
@@ -76,24 +94,9 @@ const errorCodeDescriptions = {
   11014: {
     description: 'Order does not exist',
   },
-};
-
-// Error codes: https://www.tapbit.com/openapi-docs/spot/spot_errorcode/
-const httpErrorCodeDescriptions = {
-  4: { // 4XX
-    description: 'Wrong request content, behavior, format',
-  },
-  429: {
-    description: 'Warning access frequency exceeding the limit',
-    isTemporary: true,
-  },
-  5: { // 5XX
-    description: 'Problems on the Tapbit service side',
-    isTemporary: true,
-  },
-  504: {
-    description: 'API server has submitted a request to the business core but failed to get a response',
-  },
+  // On 429, TapBit returns 200 and '429' as internal error code. Example: '200 OK, [429] Too Many Requests'.
+  // Here we consider only 429 and 504 codes, skipping 4XX and 5XX masks.
+  ...httpErrorCodeDescriptions,
 };
 
 module.exports = function() {
