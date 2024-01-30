@@ -1,6 +1,6 @@
 {
   "name": "adamant-coinoptimus",
-  "version": "1.11.1",
+  "version": "1.12.0",
   "description": "ADAMANT CoinOptimus: free self-hosted cryptocurrency trade bot for non-professional traders",
   "main": "index.js",
   "scripts": {
@@ -37,7 +37,8 @@
     "coinstore",
     "fameex",
     "NonKYC",
-    "xeggex"
+    "xeggex",
+    "biconomy"
   ],
   "author": "Aleksei Lebedev, ADAMANT Team <devs@adamant.im> (https://adamant.im)",
   "license": "GPL-3.0",
