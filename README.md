@@ -48,7 +48,7 @@ See trades history example with a 3% price step:
 * [FameEX](https://www.fameex.com/en-US/commissiondispense?code=MKKAWV)
 * [NonKYC](https://nonkyc.io?ref=655b4df9eb13acde84677358)
 * [XeggeX](https://xeggex.com?ref=656846d209bbed85b91aba4d)
-- [Tapbit](https://tapbit.com)
+- [Tapbit](https://www.tapbit.com/auth/PRYDGSK)
 
 # Usage and Installation
 
