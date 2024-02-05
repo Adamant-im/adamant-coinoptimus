@@ -4,9 +4,6 @@ const {
   getParamsString,
 } = require('../../helpers/utils');
 
-const DEFAULT_PRECISION = 0.000001; // bitcastle's API doesn't provide decimals/precision for trade pairs
-const DEFAULT_COIN2_MIN_AMOUNT = 1; // bitcastle's API doesn't provide min amounts for trades
-
 /**
  * Docs: https://developer.bitcastle.io/document
  */
@@ -148,9 +145,6 @@ module.exports = function() {
   }
 
   const EXCHANGE_API = {
-    DEFAULT_PRECISION,
-    DEFAULT_COIN2_MIN_AMOUNT,
-
     setConfig(apiServer, apiKey, secretKey, tradePwd, logger, publicOnly = false) {
       if (apiServer) {
         WEB_BASE = apiServer;
@@ -269,14 +263,15 @@ module.exports = function() {
      * https://developer.bitcastle.io/document#tag/Markets/operation/Get%20orderbook
      * @param {String} coin Example: 'BTC'
      * @param {String} currency Example: 'USDT'
+     * @param {Number} precision To receive full order plain book, set to trading pair precision (e.g., 0.000001 for ADM/USDT)
      * @param {Number} [limit=100] Max: 100, Default: 100
      * @return {Promise<Object>}
      */
-    orderBook(coin, currency, limit = 100) {
+    orderBook(coin, currency, precision, limit = 100) {
       const params = {
         coin,
         currency,
-        precision: this.DEFAULT_PRECISION,
+        precision,
         take: limit,
       };
 

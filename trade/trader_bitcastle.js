@@ -1,6 +1,6 @@
 const BitcastleAPI = require('./api/bitcastle_api');
 const utils = require('../helpers/utils');
-const config = require('./../modules/config/reader');
+const config = require('./../modules/configReader');
 
 /**
  * API endpoints:
@@ -8,6 +8,24 @@ const config = require('./../modules/config/reader');
  */
 const apiServer = 'https://developer.bitcastle.io';
 const exchangeName = 'Bitcastle';
+
+const DEFAULT_DECIMALS = 8; // bitcastle's API doesn't provide decimals/precision for trade pairs
+const DEFAULT_COIN2_MIN_AMOUNT = 1; // bitcastle's API doesn't provide min amounts for trades
+
+const hardCodedPairInfo = {
+  doge: { // doge/usdt
+    coin1Decimals: 0,
+    coin2Decimals: 5,
+    coin1MinAmount: 143,
+    coin2MinAmount: 10,
+  },
+  adm: { // adm/usdt
+    coin1Decimals: 4,
+    coin2Decimals: 6,
+    coin1MinAmount: 40,
+    coin2MinAmount: 1,
+  },
+};
 
 module.exports = (
     apiKey,
@@ -56,29 +74,12 @@ module.exports = (
             // bitcastle's API doesn't provide any info on trading pairs
             // We use constants as workaround
 
-            const hardCodedPairInfo = {
-              doge: { // doge/usdt
-                coin1Decimals: 0,
-                coin2Decimals: 5,
-                coin1MinAmount: 143,
-                coin2MinAmount: 10,
-              },
-              adm: { // adm/usdt
-                coin1Decimals: 4,
-                coin2Decimals: 6,
-                coin1MinAmount: 40,
-                coin2MinAmount: 1,
-              },
-            };
-
-            const coin1Decimals = hardCodedPairInfo[pairNames.coin1]?.coin1Decimals ??
-                utils.getDecimalsFromPrecision(bitcastleApiClient.DEFAULT_PRECISION);
-            const coin2Decimals = hardCodedPairInfo[pairNames.coin1]?.coin2Decimals ??
-                utils.getDecimalsFromPrecision(bitcastleApiClient.DEFAULT_PRECISION);
+            const coin1Decimals = hardCodedPairInfo[pairNames.coin1]?.coin1Decimals ?? DEFAULT_DECIMALS;
+            const coin2Decimals = hardCodedPairInfo[pairNames.coin1]?.coin2Decimals ?? DEFAULT_DECIMALS;
 
             const coin1MinAmount = hardCodedPairInfo[pairNames.coin1]?.coin1MinAmount ?? null;
             const coin2MinAmount = hardCodedPairInfo[pairNames.coin1]?.coin2MinAmount ??
-                (pairNames.coin2.startsWith('usd') ? bitcastleApiClient.DEFAULT_COIN2_MIN_AMOUNT : null);
+                (pairNames.coin2.startsWith('usd') ? DEFAULT_COIN2_MIN_AMOUNT : null);
 
             result[pairNames.pairPlain] = {
               pairReadable: pairNames.pairReadable,
@@ -130,6 +131,11 @@ module.exports = (
       return module.exports.exchangeMarkets;
     },
 
+    /**
+     * Get market info for a pair
+     * @param {String} pair In classic format as BTC/USD
+     * @returns {Promise<*>|*}
+     */
     marketInfo(pair) {
       return getMarkets(pair);
     },
@@ -279,17 +285,28 @@ module.exports = (
         if (order.status_code === 200) {
           order = order.data[0];
 
+          // PENDING = 1, FILLED = 2, CANCELED = 3, EXPIRED = 4, CANCELING = 6
+          // MARKET FILLED = 5, PART_FILLED = 7
           let orderStatus;
-          if (+order.status === 1) {
-            if (+order.filled_volume === 0) {
+          switch (order.status) {
+            case 1:
               orderStatus = 'new';
-            } else {
+              break;
+            case 7:
               orderStatus = 'part_filled';
-            }
-          } else if (+order.status === 2 || +order.status === 5) {
-            orderStatus = 'filled';
-          } else {
-            orderStatus = 'cancelled';
+              break;
+            case 2:
+            case 5:
+              orderStatus = 'filled';
+              break;
+            case 3:
+            case 4:
+            case 6:
+              orderStatus = 'cancelled';
+              break;
+            default:
+              orderStatus = 'unknown';
+              break;
           }
 
           const result = {
@@ -590,7 +607,8 @@ module.exports = (
       let book;
 
       try {
-        book = await bitcastleApiClient.orderBook(coinPair.coin1, coinPair.coin2);
+        const precision = this.marketInfo(coinPair.pairReadable).coin2Precision;
+        book = await bitcastleApiClient.orderBook(coinPair.coin1, coinPair.coin2, precision);
         book = book.data.orderbook;
       } catch (error) {
         log.warn(`API request getOrderBook(${paramString}) of ${utils.getModuleName(module.id)} module failed. ${error}`);
