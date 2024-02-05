@@ -53,20 +53,49 @@ module.exports = (
           for (const market of markets) {
             const pairNames = formatPairName(market.ticker_id);
 
+            // bitcastle's API doesn't provide any info on trading pairs
+            // We use constants as workaround
+
+            const hardCodedPairInfo = {
+              doge: { // doge/usdt
+                coin1Decimals: 0,
+                coin2Decimals: 5,
+                coin1MinAmount: 143,
+                coin2MinAmount: 10,
+              },
+              adm: { // adm/usdt
+                coin1Decimals: 4,
+                coin2Decimals: 6,
+                coin1MinAmount: 40,
+                coin2MinAmount: 1,
+              },
+            };
+
+            const coin1Decimals = hardCodedPairInfo[pairNames.coin1]?.coin1Decimals ??
+                utils.getDecimalsFromPrecision(bitcastleApiClient.DEFAULT_PRECISION);
+            const coin2Decimals = hardCodedPairInfo[pairNames.coin1]?.coin2Decimals ??
+                utils.getDecimalsFromPrecision(bitcastleApiClient.DEFAULT_PRECISION);
+
+            const coin1MinAmount = hardCodedPairInfo[pairNames.coin1]?.coin1MinAmount ?? null;
+            const coin2MinAmount = hardCodedPairInfo[pairNames.coin1]?.coin2MinAmount ??
+                (pairNames.coin2.startsWith('usd') ? bitcastleApiClient.DEFAULT_COIN2_MIN_AMOUNT : null);
+
             result[pairNames.pairPlain] = {
               pairReadable: pairNames.pairReadable,
               pairPlain: pairNames.pairPlain,
               coin1: pairNames.coin1,
               coin2: pairNames.coin2,
-              coin1Decimals: null,
-              coin2Decimals: null,
-              coin1Precision: null,
-              coin2Precision: null,
-              coin1MinAmount: null,
+              coin1Decimals,
+              coin2Decimals,
+              coin1Precision: utils.getPrecision(coin1Decimals),
+              coin2Precision: utils.getPrecision(coin2Decimals),
+              coin1MinAmount,
               coin1MaxAmount: null,
+              coin2MinAmount,
+              coin2MaxAmount: null,
               coin2MinPrice: null,
               coin2MaxPrice: null,
-              minTrade: null,
+              minTrade: coin2MinAmount, // in coin2 (total)
               status: null,
             };
           }
@@ -415,10 +444,10 @@ module.exports = (
       }
 
       try {
-        if (+ticker?.price && book.asks.length) {
+        if (ticker.price && book.asks.length) {
           return {
-            ask: +book.asks[0].price,
-            bid: +book.bids[0].price,
+            ask: book.asks[0].price,
+            bid: book.bids[0].price,
             last: +ticker.price,
             volume: +ticker.volume,
             volumeInCoin2: +ticker.total,
@@ -467,6 +496,16 @@ module.exports = (
       let coin2AmountCalculated;
       if (!coin2Amount && coin1Amount && price) {
         coin2AmountCalculated = coin1Amount * price;
+      }
+
+      if (coin1Amount) {
+        coin1Amount = (+coin1Amount).toFixed(marketInfo.coin1Decimals);
+      }
+      if (coin2Amount) {
+        coin2Amount = (+coin2Amount).toFixed(marketInfo.coin2Decimals);
+      }
+      if (price) {
+        price = (+price).toFixed(marketInfo.coin2Decimals);
       }
 
       if (coin1Amount < marketInfo.coin1MinAmount) {

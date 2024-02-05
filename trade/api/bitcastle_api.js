@@ -4,6 +4,9 @@ const {
   getParamsString,
 } = require('../../helpers/utils');
 
+const DEFAULT_PRECISION = 0.000001; // bitcastle's API doesn't provide decimals/precision for trade pairs
+const DEFAULT_COIN2_MIN_AMOUNT = 1; // bitcastle's API doesn't provide min amounts for trades
+
 /**
  * Docs: https://developer.bitcastle.io/document
  */
@@ -145,6 +148,9 @@ module.exports = function() {
   }
 
   const EXCHANGE_API = {
+    DEFAULT_PRECISION,
+    DEFAULT_COIN2_MIN_AMOUNT,
+
     setConfig(apiServer, apiKey, secretKey, tradePwd, logger, publicOnly = false) {
       if (apiServer) {
         WEB_BASE = apiServer;
@@ -270,7 +276,7 @@ module.exports = function() {
       const params = {
         coin,
         currency,
-        precision: 0.01,
+        precision: this.DEFAULT_PRECISION,
         take: limit,
       };
 
