@@ -55,7 +55,8 @@
     "FameEX",
     "NonKYC",
     "XeggeX",
-    "Biconomy"
+    "Biconomy",
+    "BitCastle"
   ],
 
   /** Exchange to work with. Case insensitive. **/

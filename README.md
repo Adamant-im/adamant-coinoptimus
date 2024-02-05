@@ -49,6 +49,7 @@ See trades history example with a 3% price step:
 * [NonKYC](https://nonkyc.io?ref=655b4df9eb13acde84677358)
 * [XeggeX](https://xeggex.com?ref=656846d209bbed85b91aba4d)
 * [Biconomy](https://www.biconomy.com/sign-up?r_user_id=W9XFVL0MA)
+* [BitCastle](https://bitcastle.io)
 
 # Usage and Installation
 
