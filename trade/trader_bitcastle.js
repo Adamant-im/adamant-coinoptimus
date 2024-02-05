@@ -1,6 +1,6 @@
 const BitcastleAPI = require('./api/bitcastle_api');
 const utils = require('../helpers/utils');
-const config = require('./../modules/configReader');
+const config = require('./../modules/config/reader');
 
 /**
  * API endpoints:
