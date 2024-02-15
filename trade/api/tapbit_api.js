@@ -9,6 +9,24 @@ const {
  * Docs: https://tapbit.com/openapi-docs/spot
  */
 
+// Error codes: https://www.tapbit.com/openapi-docs/spot/spot_errorcode/
+const httpErrorCodeDescriptions = {
+  4: { // 4XX
+    description: 'Wrong request content, behavior, format',
+  },
+  429: {
+    description: 'Warning access frequency exceeding the limit',
+    isTemporary: true,
+  },
+  5: { // 5XX
+    description: 'Problems on the Tapbit service side',
+    isTemporary: true,
+  },
+  504: {
+    description: 'API server has submitted a request to the business core but failed to get a response',
+  },
+};
+
 /**
  * Error codes:
  * isTemporary means that we consider the request is temporary failed and we'll repeat it later with success possibility
@@ -76,24 +94,9 @@ const errorCodeDescriptions = {
   11014: {
     description: 'Order does not exist',
   },
-};
-
-// Error codes: https://www.tapbit.com/openapi-docs/spot/spot_errorcode/
-const httpErrorCodeDescriptions = {
-  4: { // 4XX
-    description: 'Wrong request content, behavior, format',
-  },
-  429: {
-    description: 'Warning access frequency exceeding the limit',
-    isTemporary: true,
-  },
-  5: { // 5XX
-    description: 'Problems on the Tapbit service side',
-    isTemporary: true,
-  },
-  504: {
-    description: 'API server has submitted a request to the business core but failed to get a response',
-  },
+  // On 429, TapBit returns 200 and '429' as internal error code. Example: '200 OK, [429] Too Many Requests'.
+  // Here we consider only 429 and 504 codes, skipping 4XX and 5XX masks.
+  ...httpErrorCodeDescriptions,
 };
 
 module.exports = function() {
@@ -270,13 +273,15 @@ module.exports = function() {
      * Get open order list
      * https://www.tapbit.com/openapi-docs/spot/private/open_order_list/
      * @param {String} symbol In Tapbit format as BTC/USDT
-     * @param {String} [nextOrderId] Order ID, which is used in pagination. The default value is empty. The latest 20 pieces of data are returned and displayed in reverse order by order ID. Get the last order Id-1, take the next page of data.
+     * @param {String} [nextOrderId] Order ID, which is used in pagination. The default value is empty. The latest 20 pieces (upd: see 'limit') of data are returned and displayed in reverse order by order ID. Get the last order Id-1, take the next page of data.
+     * @param {Number} limit Not documented, but it's available. Max is 100.
      * @return {Promise<[]>}
      */
-    getOrders(symbol, nextOrderId) {
+    getOrders(symbol, nextOrderId, limit = 100) {
       const params = {
         instrument_id: symbol,
         next_order_id: nextOrderId,
+        limit,
       };
 
       return protectedRequest('get', '/api/v1/spot/open_order_list', params);
