@@ -38,7 +38,8 @@
     "fameex",
     "NonKYC",
     "xeggex",
-    "tapbit"
+    "tapbit",
+    "biconomy"
   ],
   "author": "Aleksei Lebedev, ADAMANT Team <devs@adamant.im> (https://adamant.im)",
   "license": "GPL-3.0",
