@@ -56,7 +56,8 @@
     "NonKYC",
     "XeggeX",
     "Tapbit",
-    "Biconomy"
+    "Biconomy",
+    "DigiFinex"
   ],
 
   /** Exchange to work with. Case insensitive. **/
