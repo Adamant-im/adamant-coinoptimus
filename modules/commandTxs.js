@@ -1343,29 +1343,10 @@ async function stats(params) {
     const mmDisabledNote = tradeParams.mm_isActive ? '' : ' [Note: currently market-making is disabled]';
 
     // Third, get target mm volume
-    const currentDailyTradeVolume = exchangerUtils.estimateCurrentDailyTradeVolume();
-    const currentDailyTradeVolumeString = `~${utils.formatNumber(currentDailyTradeVolume.coin1.toFixed(coin1Decimals), true)} ${coin1} (${utils.formatNumber(currentDailyTradeVolume.coin2.toFixed(coin2Decimals), true)} ${coin2})`;
-    output += '\n\n**Target estimated market-making volume**:\n\n';
-
-    if (tradeParams.mm_isActive) {
-      if (tradeParams.mm_Policy === 'depth') {
-        output += 'I work with **depth** market-making policy to maintain order books, and run no trades to move price or for volume.';
-        output += ` If you'll change policy, with current parameters daily I will generate ${currentDailyTradeVolumeString}.`;
-      } else {
-        output += `With current parameters, daily I will generate ${currentDailyTradeVolumeString}`;
-        if (tradeParams.mm_isPriceChangeVolumeActive) {
-          output += ' plus additional volume by Price maker and Price watcher. Amount of additional volume depends on liquidity set with _/enable liq_ command.';
-        } else {
-          output += ', additional volume by Price maker and Price watcher is disabled.';
-        }
-      }
-    } else {
-      output += '**Market-making is disabled**.';
-      output += ` If you'll enable it, with current parameters daily I will generate ${currentDailyTradeVolumeString}.`;
-    }
+    // ..
 
     // Forth, get order statistics
-    const { statList, statTotal } = await orderStats.getAllOrderStats(['mm', 'pm', 'pw', 'cl', 'qh', 'man'], pairObj.pair);
+    const { statList, statTotal } = await orderStats.getAllOrderStats(['ld', 'man'], pairObj.pair);
 
     const composeOrderStats = function(stats) {
       const composeLine = function(time, label) {
