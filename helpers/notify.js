@@ -1,6 +1,3 @@
-/* eslint-disable object-shorthand */
-/* eslint-disable quote-props */
-
 const axios = require('axios');
 const config = require('../modules/config/reader');
 const log = require('./log');
@@ -16,17 +13,17 @@ const {
 } = config;
 
 const slackColors = {
-  'error': '#FF0000',
-  'warn': '#FFFF00',
-  'info': '#00FF00',
-  'log': '#FFFFFF',
+  error: '#FF0000',
+  warn: '#FFFF00',
+  info: '#00FF00',
+  log: '#FFFFFF',
 };
 
 const discordColors = {
-  'error': '16711680',
-  'warn': '16776960',
-  'info': '65280',
-  'log': '16777215',
+  error: '16711680',
+  warn: '16776960',
+  info: '65280',
+  log: '16777215',
 };
 
 /**
@@ -52,11 +49,11 @@ module.exports = (messageText, type, silent_mode = false, isPriority = false) =>
 
       if (slackKeys.length) {
         const params = {
-          'attachments': [{
-            'fallback': message,
-            'color': slackColors[type],
-            'text': makeBoldForSlack(message),
-            'mrkdwn_in': ['text'],
+          attachments: [{
+            fallback: message,
+            color: slackColors[type],
+            text: makeBoldForSlack(message),
+            mrkdwn_in: ['text'],
           }],
         };
 

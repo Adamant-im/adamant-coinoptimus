@@ -41,7 +41,8 @@ module.exports = async (commandMsg, tx, itx) => {
   let commandResult = {};
 
   try {
-    const from =
+    const from = tx.senderTgUsername ?
+      `${tx.senderTgUsername} (message ${tx.id})` :
       `${tx.senderId} (transaction ${tx.id})`;
 
     log.log(`Processing '${commandMsg}' command from ${from}…`);
@@ -75,18 +76,70 @@ module.exports = async (commandMsg, tx, itx) => {
     }
 
     if (itx) {
-      itx.update({ isProcessed: true }, true);
+      await itx.update({ isProcessed: true }, true);
     }
 
-    utils.saveConfig(false, 'After-commandTxs()');
-
+    if (commandName !== 'y') {
+      utils.saveConfig(false, `After-commandTxs(/${commandName})`);
+    }
   } catch (e) {
     tx = tx || {};
-    log.error(`Error while processing ${commandMsg} command from ${tx.senderId} (transaction ${tx.id}). Error: ${e.toString()}`);
+
+    if (tx.senderTgUsername) {
+      log.error(`Error while processing ${commandMsg} command from ${tx.senderTgUsername} (message ${tx.id}). Error: ${e.toString()}`);
+    } else {
+      log.error(`Error while processing ${commandMsg} command from ${tx.senderId} (transaction ${tx.id}). Error: ${e.toString()}`);
+    }
   }
 
   return commandResult;
 };
+
+/**
+ * Get pair rates info from an exchange
+ * @param {String} pair Trade pair to request
+ * @returns {Object} success, exchangeRates, ratesString
+ */
+async function getRatesInfo(pair) {
+  let exchangeRates;
+  let ratesString;
+  let success;
+
+  try {
+    const pairObj = orderUtils.parseMarket(pair);
+    const coin2 = pairObj.coin2;
+    const coin2Decimals = pairObj.coin2Decimals;
+
+    exchangeRates = await traderapi.getRates(pairObj.pair);
+
+    if (exchangeRates) {
+      const delta = exchangeRates.ask-exchangeRates.bid;
+      const average = (exchangeRates.ask+exchangeRates.bid)/2;
+      const deltaPercent = delta/average * 100;
+
+      ratesString = `${config.exchangeName} rates for ${pair} pair:`;
+      ratesString += `\nBid: ${exchangeRates.bid.toFixed(coin2Decimals)}, ask: ${exchangeRates.ask.toFixed(coin2Decimals)}, spread: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
+      if (exchangeRates.last) {
+        ratesString += ` Last price: _${(exchangeRates.last).toFixed(coin2Decimals)}_ ${coin2}.`;
+      }
+
+      success = true;
+    } else {
+      ratesString = `Unable to get ${config.exchangeName} rates for ${pairObj.pair}.`;
+      success = false;
+    }
+  } catch (e) {
+    log.error(`Error in getRatesString() of ${utils.getModuleName(module.id)} module: ` + e);
+    ratesString = `Unable to process ${config.exchangeName} rates for ${pair}.`;
+    success = false;
+  }
+
+  return {
+    success,
+    exchangeRates,
+    ratesString,
+  };
+}
 
 /**
  * Set a command to be confirmed
@@ -104,7 +157,7 @@ async function setPendingConfirmation(command) {
 
 /**
  * Command to confirm pending command, set with setPendingConfirmation()
- * @param {String[]} params Doesn't matter
+ * @param {Array of String} params Doesn't matter
  * @param {Object} tx Information about initiator
  * @return {Object} commandResult.msgSendBack to reply
  */
@@ -432,11 +485,9 @@ function disable(params) {
 async function clear(params) {
   try {
     let pair = params[0];
-
     if (!pair || pair.indexOf('/') === -1) {
       pair = config.pair;
     }
-
     const pairObj = orderUtils.parseMarket(pair);
 
     let doForce;
@@ -524,15 +575,17 @@ async function clear(params) {
     let clearedInfo = {};
     const typeString = type ? `**${type}**-` : '';
 
+    const api = traderapi;
+
     if (purposes === 'all') {
-      clearedInfo = await orderCollector.clearAllOrders(pairObj.pair, doForce, type, 'User command', `${typeString}orders`);
+      clearedInfo = await orderCollector.clearAllOrders(pairObj.pair, doForce, type, 'User command', `${typeString}orders`, api);
     } else { // Closing orders of specified type only
       let filterString = '';
       if (purposes === 'unk') {
-        clearedInfo = await orderCollector.clearUnknownOrders(pairObj.pair, doForce, type, 'User command', `**${purposeString}** ${typeString}orders${filterString}`);
+        clearedInfo = await orderCollector.clearUnknownOrders(pairObj.pair, doForce, type, 'User command', `**${purposeString}** ${typeString}orders${filterString}`, api);
       } else {
         if (filter) filterString = ` with price ${filerPriceString} ${config.coin2}`;
-        clearedInfo = await orderCollector.clearLocalOrders(purposes, pairObj.pair, doForce, type, filter, 'User command', `**${purposeString}** ${typeString}orders${filterString}`);
+        clearedInfo = await orderCollector.clearLocalOrders(purposes, pairObj.pair, doForce, type, filter, 'User command', `**${purposeString}** ${typeString}orders${filterString}`, api);
       }
     }
     output = clearedInfo.logMessage;
@@ -545,6 +598,251 @@ async function clear(params) {
   } catch (e) {
     log.error(`Error in clear() of ${utils.getModuleName(module.id)} module: ` + e);
   }
+}
+
+async function fill(params) {
+  const isConfirmed = params.find((param) => ['-y'].includes(param.toLowerCase())) !== undefined;
+
+  let count; let amount; let low; let high; let amountName;
+  params.forEach((param) => {
+    try {
+      if (param.startsWith('count')) {
+        count = +param.split('=')[1].trim();
+      }
+      if (param.startsWith('amount')) {
+        amount = +param.split('=')[1].trim();
+        amountName = 'amount';
+      }
+      if (param.startsWith('quote')) {
+        amount = +param.split('=')[1].trim();
+        amountName = 'quote';
+      }
+      if (param.startsWith('low')) {
+        low = +param.split('=')[1].trim();
+      }
+      if (param.startsWith('high')) {
+        high = +param.split('=')[1].trim();
+      }
+    } catch (e) {
+      return {
+        msgNotify: '',
+        msgSendBack: 'Wrong arguments. It works like this: */fill ADM/BTC buy quote=0.00002000 low=0.00000100 high=0.00000132 count=7*.',
+        notifyType: 'log',
+      };
+    }
+  });
+
+  if (params.length < 4) {
+    return {
+      msgNotify: '',
+      msgSendBack: 'Wrong arguments. It works like this: */fill ADM/BTC buy quote=0.00002000 low=0.00000100 high=0.00000132 count=7*.',
+      notifyType: 'log',
+    };
+  }
+
+  let output = '';
+  let type;
+
+  let pair = params[0];
+  if (!pair || pair.indexOf('/') === -1) {
+    pair = config.pair;
+    type = params[0]?.trim().toLowerCase();
+  } else {
+    type = params[1]?.trim().toLowerCase();
+  }
+
+  if (!['buy', 'sell'].includes(type)) {
+    return {
+      msgNotify: '',
+      msgSendBack: 'Specify _buy_ or _sell_ orders to fill. Example: */fill ADM/BTC buy quote=0.00002000 low=0.00000100 high=0.00000132 count=7*.',
+      notifyType: 'log',
+    };
+  }
+
+  const pairObj = orderUtils.parseMarket(pair);
+
+  if (!amount || !amountName || (type === 'buy' && amountName === 'amount') || (type === 'sell' && amountName === 'quote')) {
+    output = 'Buy should follow with _quote_, sell with _amount_.';
+    return {
+      msgNotify: '',
+      msgSendBack: `${output}`,
+      notifyType: 'log',
+    };
+  }
+
+  if (!count || count === Infinity || count < 1 || count === undefined) {
+    output = 'Specify order count.';
+    return {
+      msgNotify: '',
+      msgSendBack: `${output}`,
+      notifyType: 'log',
+    };
+  }
+
+  if (!high || high === Infinity || high === undefined || !low || low === Infinity || low === undefined) {
+    output = 'Specify _low_ and _high_ prices to fill orders.';
+    return {
+      msgNotify: '',
+      msgSendBack: `${output}`,
+      notifyType: 'log',
+    };
+  }
+
+  if (low > high) {
+    output = 'To fill orders _high_ should be greater than _low_.';
+    return {
+      msgNotify: '',
+      msgSendBack: `${output}`,
+      notifyType: 'log',
+    };
+  }
+
+  const onWhichAccount = '';
+
+  const balances = await traderapi.getBalances(false);
+  let balance;
+  let isBalanceEnough = true;
+  if (balances) {
+    try {
+      if (type === 'buy') {
+        balance = balances.filter((crypto) => crypto.code === pairObj.coin2)?.[0]?.free || 0;
+        output = `Not enough ${pairObj.coin2}${onWhichAccount} to fill orders. Check balances.`;
+      } else {
+        balance = balances.filter((crypto) => crypto.code === pairObj.coin1)?.[0]?.free || 0;
+        output = `Not enough ${pairObj.coin1}${onWhichAccount} to fill orders. Check balances.`;
+      }
+      isBalanceEnough = balance >= amount;
+    } catch (e) {
+      output = `Unable to process balances${onWhichAccount}: ${e}. Check parameters.`;
+      return {
+        msgNotify: '',
+        msgSendBack: `${output}`,
+        notifyType: 'log',
+      };
+    }
+  } else {
+    output = `Unable to get ${config.exchangeName} balances${onWhichAccount}. Try again.`;
+    return {
+      msgNotify: '',
+      msgSendBack: `${output}`,
+      notifyType: 'log',
+    };
+  }
+
+  if (!isBalanceEnough) {
+    return {
+      msgNotify: '',
+      msgSendBack: `${output}`,
+      notifyType: 'log',
+    };
+  }
+
+  let totalUSD;
+
+  if (amountName === 'quote') {
+    totalUSD = exchangerUtils.convertCryptos(pairObj.coin2, 'USD', amount).outAmount;
+  } else {
+    totalUSD = exchangerUtils.convertCryptos(pairObj.coin1, 'USD', amount).outAmount;
+  }
+
+  if (config.amount_to_confirm_usd && totalUSD && totalUSD >= config.amount_to_confirm_usd && !isConfirmed) {
+    setPendingConfirmation(`/fill ${params.join(' ')}`);
+
+    const totalUSDstring = utils.formatNumber(totalUSD.toFixed(0), true);
+
+    let confirmationMessage;
+    if (amountName === 'quote') {
+      confirmationMessage = `Are you sure to fill ${count} orders${onWhichAccount} to ${type} ${pairObj.coin1} worth ~${totalUSDstring} USD priced from ${low} to ${high} ${pairObj.coin2}?`;
+    } else {
+      confirmationMessage = `Are you sure to fill ${count} orders${onWhichAccount} to ${type} ${amount} ${pairObj.coin1} (worth ~${totalUSDstring} USD) priced from ${low} to ${high} ${pairObj.coin2}?`;
+    }
+    confirmationMessage += ' Confirm with **/y** command or ignore.';
+
+    return {
+      msgNotify: '',
+      msgSendBack: confirmationMessage,
+      notifyType: 'log',
+    };
+  }
+
+  // Make order list
+  const orderList = [];
+  const delta = high - low;
+  const step = delta / count;
+  const orderAmount = amount / count;
+  const deviation = 0.9;
+
+  let price = low;
+  let total = 0; let coin1Amount = 0; let coin2Amount = 0;
+  for (let i=0; i < count; i++) {
+    price += utils.randomDeviation(step, deviation);
+    coin1Amount = utils.randomDeviation(orderAmount, deviation);
+    total += coin1Amount;
+
+    // Checks if total or price exceeded
+    if (total > amount) {
+      if (count === 1) {
+        coin1Amount = amount;
+      } else {
+        break;
+      }
+    }
+    if (price > high) {
+      if (count === 1) {
+        price = high;
+      } else {
+        break;
+      }
+    }
+
+    // Count base and quote currency amounts
+    if (type === 'buy') {
+      coin2Amount = coin1Amount;
+      coin1Amount = coin1Amount / price;
+    } else {
+      // coin1Amount = coin1Amount;
+      coin2Amount = coin1Amount * price;
+    }
+    orderList.push({
+      price,
+      amount: coin1Amount,
+      altAmount: coin2Amount,
+    });
+  }
+
+  // Place orders
+  let total1 = 0; let total2 = 0;
+  let placedOrders = 0; let notPlacedOrders = 0;
+  let order;
+  for (let i = 0; i < orderList.length; i++) {
+    order = await orderUtils.addGeneralOrder(type, pairObj.pair, orderList[i].price, orderList[i].amount, 1, null, pairObj, 'man');
+    if (order?._id) {
+      placedOrders += 1;
+      total1 += +orderList[i].amount;
+      total2 += +orderList[i].altAmount;
+    } else {
+      notPlacedOrders += 1;
+    }
+  }
+
+  let notPlacedString = '';
+  if (placedOrders > 0) {
+    if (notPlacedOrders) {
+      notPlacedString = ` ${notPlacedOrders} orders missed because of errors, check log file for details.`;
+    }
+    output = `${placedOrders} orders${onWhichAccount} to ${type} ${utils.formatNumber(+total1.toFixed(pairObj.coin1Decimals), false)} ${pairObj.coin1} for ${utils.formatNumber(+total2.toFixed(pairObj.coin2Decimals), false)} ${pairObj.coin2}.${notPlacedString}`;
+  } else {
+    output = `No orders${onWhichAccount} were placed. Check log file for details.`;
+  }
+
+  const msgNotify = placedOrders > 0 ? `${config.notifyName} placed ${output}` : '';
+  const msgSendBack = placedOrders > 0 ? `Placed ${output}` : output;
+
+  return {
+    msgNotify,
+    msgSendBack,
+    notifyType: 'log',
+  };
 }
 
 /**
@@ -752,10 +1050,10 @@ async function buy_sell(params, type) {
   let result; let msgNotify; let msgSendBack;
   if (params.price === 'market') {
     result = await orderUtils.addGeneralOrder(type, params.pairObj.pair, null,
-        params.amount, 0, params.quote, params.pairObj);
+        params.amount, 0, params.quote, params.pairObj, 'man', params.api);
   } else {
     result = await orderUtils.addGeneralOrder(type, params.pairObj.pair, params.price,
-        params.amount, 1, params.quote, params.pairObj);
+        params.amount, 1, params.quote, params.pairObj, 'man', params.api);
   }
 
   if (result !== undefined) {
@@ -764,7 +1062,8 @@ async function buy_sell(params, type) {
       msgNotify = `${config.notifyName}: ${result.message}`;
     }
   } else {
-    msgSendBack = `Request to place an order with params ${JSON.stringify(params)} failed. It looks like an API temporary error. Try again.`;
+    const onWhichAccount = params.api?.isSecondAccount ? ' (on second account)' : '';
+    msgSendBack = `Request to place an order${onWhichAccount} with params ${JSON.stringify(params)} failed. It looks like an API temporary error. Try again.`;
     msgNotify = '';
   }
 
@@ -831,13 +1130,11 @@ async function rates(params) {
       params[0] = config.pair;
     }
 
-    let pair; let coin1; let coin2; let coin2Decimals;
+    let pair; let coin1;
     const pairObj = orderUtils.parseMarket(params[0]);
     if (pairObj) {
       pair = pairObj.pair;
       coin1 = pairObj.coin1;
-      coin2 = pairObj.coin2;
-      coin2Decimals = pairObj.coin2Decimals;
     } else {
       coin1 = params[0]?.toUpperCase();
     }
@@ -867,18 +1164,12 @@ async function rates(params) {
     }
 
     if (pair) {
-      const exchangeRates = await traderapi.getRates(pair);
       if (output) {
         output += '\n\n';
       }
-      if (exchangeRates) {
-        const delta = exchangeRates.ask-exchangeRates.bid;
-        const average = (exchangeRates.ask+exchangeRates.bid)/2;
-        const deltaPercent = delta/average * 100;
-        output += `${config.exchangeName} rates for ${pair} pair:\nBid: ${exchangeRates.bid.toFixed(coin2Decimals)}, ask: ${exchangeRates.ask.toFixed(coin2Decimals)}, spread: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
-      } else {
-        output += `Unable to get ${config.exchangeName} rates for ${pair}.`;
-      }
+
+      const exchangeRatesInfo = await getRatesInfo(pair);
+      output += exchangeRatesInfo.ratesString;
     }
   } catch (e) {
     log.error(`Error in rates() of ${utils.getModuleName(module.id)} module: ` + e);
@@ -889,7 +1180,533 @@ async function rates(params) {
     msgSendBack: output,
     notifyType: 'log',
   };
+}
 
+async function getDepositInfo(accountNo = 0, tx = {}, coin1) {
+  let output = '';
+
+  try {
+    const api = traderapi;
+    const depositAddresses = await api.getDepositAddress(coin1);
+
+    if (depositAddresses?.length) {
+      output = `The deposit addresses for ${coin1} on ${config.exchangeName}:\n${depositAddresses.map(({ network, address, memo }) => `${network ? `_${network}_: ` : ''}${address}${memo ? `, ${memo}` : ''}`).join('\n')}`;
+    } else {
+      output = `Unable to get a deposit addresses for ${coin1}.`;
+
+      if (depositAddresses?.message) {
+        output += ` Error: ${depositAddresses?.message}.`;
+      } else if (api.features().createDepositAddressWithWebsiteOnly) {
+        output += ` Note: ${config.exchangeName} don't create new deposit addresses via API. Create it manually with a website.`;
+      }
+    }
+  } catch (e) {
+    log.error(`Error in getDepositInfo() of ${utils.getModuleName(module.id)} module: ` + e);
+  }
+
+  return output;
+}
+
+/**
+ * Show deposit address for a coin
+ * @param {String[]} params Coin to deposit
+ * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ */
+async function deposit(params, tx = {}) {
+  let output = '';
+
+  try {
+    if (!params[0] || params[0].indexOf('/') !== -1) {
+      output = 'Please specify coin to get a deposit address. F. e., */deposit ADM*.';
+      return {
+        msgNotify: '',
+        msgSendBack: `${output}`,
+        notifyType: 'log',
+      };
+    }
+
+    if (!traderapi.features().getDepositAddress) {
+      return {
+        msgNotify: '',
+        msgSendBack: 'The exchange doesn\'t support receiving a deposit address.',
+        notifyType: 'log',
+      };
+    }
+
+    const coin1 = params[0].toUpperCase();
+    const account0DepositInfo = await getDepositInfo(0, tx, coin1);
+    const account1DepositInfo = undefined;
+    output = account1DepositInfo ?
+      account0DepositInfo.replace(`on ${config.exchangeName}`, `on ${config.exchangeName} (account 1)`) +
+      '\n\n\n' + account1DepositInfo.replace(`on ${config.exchangeName}`, `on ${config.exchangeName} (account 2)`) :
+      account0DepositInfo;
+  } catch (e) {
+    log.error(`Error in deposit() of ${utils.getModuleName(module.id)} module: ` + e);
+  }
+
+  return {
+    msgNotify: '',
+    msgSendBack: output,
+    notifyType: 'log',
+  };
+}
+
+/**
+ * Show trade pair stats
+ * @param {String[]} params Trade pair
+ * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ */
+async function stats(params) {
+  let output = '';
+
+  try {
+    let pair = params[0];
+    if (!pair) {
+      pair = config.pair;
+    }
+    if (pair.indexOf('/') === -1) {
+      output = `Wrong pair '${pair}'. Try */stats ${config.pair}*.`;
+      return {
+        msgNotify: '',
+        msgSendBack: `${output}`,
+        notifyType: 'log',
+      };
+    }
+    const pairObj = orderUtils.parseMarket(pair);
+    const coin1 = pairObj.coin1;
+    const coin2 = pairObj.coin2;
+    const coin1Decimals = pairObj.coin1Decimals;
+    const coin2Decimals = pairObj.coin2Decimals;
+
+    // First, get exchange 24h stats on pair: volume, low, high, spread
+    const exchangeRates = await traderapi.getRates(pairObj.pair);
+    const totalVolume24 = +exchangeRates?.volume;
+    if (exchangeRates) {
+      let volumeInCoin2String = '';
+      if (exchangeRates.volumeInCoin2) {
+        volumeInCoin2String = ` & ${utils.formatNumber(+exchangeRates.volumeInCoin2.toFixed(coin2Decimals), true)} ${coin2}`;
+      }
+      output += `${config.exchangeName} 24h stats for ${pairObj.pair} pair:`;
+      let delta = exchangeRates.high-exchangeRates.low;
+      let average = (exchangeRates.high+exchangeRates.low)/2;
+      let deltaPercent = delta/average * 100;
+      output += `\nVol: ${utils.formatNumber(+exchangeRates.volume.toFixed(coin1Decimals), true)} ${coin1}${volumeInCoin2String}.`;
+      if (exchangeRates.low && exchangeRates.high) {
+        output += `\nLow: ${exchangeRates.low.toFixed(coin2Decimals)}, high: ${exchangeRates.high.toFixed(coin2Decimals)}, delta: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
+      } else {
+        output += '\nNo low and high rates available.';
+      }
+      delta = exchangeRates.ask-exchangeRates.bid;
+      average = (exchangeRates.ask+exchangeRates.bid)/2;
+      deltaPercent = delta/average * 100;
+      output += `\nBid: ${exchangeRates.bid.toFixed(coin2Decimals)}, ask: ${exchangeRates.ask.toFixed(coin2Decimals)}, spread: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
+      if (exchangeRates.last) {
+        output += `\nLast price: _${(exchangeRates.last).toFixed(coin2Decimals)}_ ${coin2}.`;
+      }
+    } else {
+      output += `Unable to get ${config.exchangeName} stats for ${pairObj.pair}. Try again later.`;
+    }
+
+    // Second, get order book information
+    const orderBook = await traderapi.getOrderBook(pairObj.pair);
+    const orderBookInfo = utils.getOrderBookInfo(orderBook);
+    if (orderBook && orderBookInfo) {
+      const delta = orderBookInfo.smartAsk-orderBookInfo.smartBid;
+      const average = (orderBookInfo.smartAsk+orderBookInfo.smartBid)/2;
+      const deltaPercent = delta/average * 100;
+
+      const bids2 = orderBookInfo.liquidity['percent2'].amountBidsQuote;
+      const asks2 = orderBookInfo.liquidity['percent2'].amountAsks;
+      const bidsFull = orderBookInfo.liquidity['full'].amountBidsQuote;
+      const asksFull = orderBookInfo.liquidity['full'].amountAsks;
+
+      const bidsPercent2 = bids2 / bidsFull * 100;
+      const asksPercent2 = asks2 / asksFull * 100;
+
+      const fairPrice2 = bids2 / asks2;
+      const fairPriceFull = bidsFull / asksFull;
+
+      output += '\n\n**Order book information**:\n\n';
+      output += `Smart bid: ${orderBookInfo.smartBid.toFixed(coin2Decimals)}, smart ask: ${orderBookInfo.smartAsk.toFixed(coin2Decimals)}, smart spread: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
+      output += `\nFull depth (may be limited by exchange API): ${orderBookInfo.liquidity['full'].bidsCount} bids with ${utils.formatNumber(bidsFull.toFixed(coin2Decimals), true)} ${coin2}`;
+      output += ` and ${orderBookInfo.liquidity['full'].asksCount} asks with ${utils.formatNumber(asksFull.toFixed(coin1Decimals), true)} ${coin1}.`;
+      output += ` Fair price: _${utils.formatNumber(fairPriceFull.toFixed(coin2Decimals), true)}_ ${coin2}.`;
+      output += `\nDepth ±2%: ${orderBookInfo.liquidity['percent2'].bidsCount} bids with ${utils.formatNumber(bids2.toFixed(coin2Decimals), true)} ${coin2} (${bidsPercent2.toFixed(2)}%)`;
+      output += ` and ${orderBookInfo.liquidity['percent2'].asksCount} asks with ${utils.formatNumber(asks2.toFixed(coin1Decimals), true)} ${coin1} (${asksPercent2.toFixed(2)}%).`;
+      if (fairPrice2) {
+        output += ` Fair price: _${utils.formatNumber(fairPrice2.toFixed(coin2Decimals), true)}_ ${coin2}.`;
+      }
+    } else {
+      output += `\n\nUnable to get ${config.exchangeName} order book information for ${pairObj.pair}. Try again later.`;
+    }
+
+    const mmDisabledNote = tradeParams.mm_isActive ? '' : ' [Note: currently market-making is disabled]';
+
+    // Third, get target mm volume
+    const currentDailyTradeVolume = exchangerUtils.estimateCurrentDailyTradeVolume();
+    const currentDailyTradeVolumeString = `~${utils.formatNumber(currentDailyTradeVolume.coin1.toFixed(coin1Decimals), true)} ${coin1} (${utils.formatNumber(currentDailyTradeVolume.coin2.toFixed(coin2Decimals), true)} ${coin2})`;
+    output += '\n\n**Target estimated market-making volume**:\n\n';
+
+    if (tradeParams.mm_isActive) {
+      if (tradeParams.mm_Policy === 'depth') {
+        output += 'I work with **depth** market-making policy to maintain order books, and run no trades to move price or for volume.';
+        output += ` If you'll change policy, with current parameters daily I will generate ${currentDailyTradeVolumeString}.`;
+      } else {
+        output += `With current parameters, daily I will generate ${currentDailyTradeVolumeString}`;
+        if (tradeParams.mm_isPriceChangeVolumeActive) {
+          output += ' plus additional volume by Price maker and Price watcher. Amount of additional volume depends on liquidity set with _/enable liq_ command.';
+        } else {
+          output += ', additional volume by Price maker and Price watcher is disabled.';
+        }
+      }
+    } else {
+      output += '**Market-making is disabled**.';
+      output += ` If you'll enable it, with current parameters daily I will generate ${currentDailyTradeVolumeString}.`;
+    }
+
+    // Forth, get order statistics
+    const { statList, statTotal } = await orderStats.getAllOrderStats(['mm', 'pm', 'pw', 'cl', 'qh', 'man'], pairObj.pair);
+
+    const composeOrderStats = function(stats) {
+      const composeLine = function(time, label) {
+        if (stats[`coin1AmountTotal${time}Count`]) {
+          const percentString = (totalVolume24 && time === 'Day') ? ` (${(stats[`coin1AmountTotal${time}`] / totalVolume24 * 100).toFixed(2)}%)` : '';
+          return `\n${label || time} — ${stats[`coin1AmountTotal${time}Count`]} orders with ${utils.formatNumber(stats[`coin1AmountTotal${time}`].toFixed(coin1Decimals), true)} ${coin1} and ${utils.formatNumber(stats[`coin2AmountTotal${time}`].toFixed(coin2Decimals), true)} ${coin2}${percentString}`;
+        } else {
+          return `\n${label || time} — No orders`;
+        }
+      };
+
+      let orderStatsString = `_${stats.purposeName}_:`;
+      if (stats.coin1AmountTotalHourCount !== 0) {
+        orderStatsString += composeLine('Hour');
+      }
+      if (stats.coin1AmountTotalDayCount > stats.coin1AmountTotalHourCount) {
+        orderStatsString += composeLine('Day');
+      }
+      if (stats.coin1AmountTotalMonthCount > stats.coin1AmountTotalDayCount) {
+        orderStatsString += composeLine('Month');
+      }
+      orderStatsString += composeLine('All', 'All time');
+      return orderStatsString;
+    };
+
+    if (statTotal?.coin1AmountTotalAllCount > 0) {
+      output += `\n\n**Executed order statistics**${mmDisabledNote}:`;
+      statList.forEach((stats) => {
+        output += `\n\n${composeOrderStats(stats)}`;
+      });
+      output += `\n\n${composeOrderStats(statTotal)}`;
+    } else {
+      output += `\n\nThe bot executed no orders on ${pairObj.pair} pair all time.`;
+    }
+  } catch (e) {
+    log.error(`Error in stats() of ${utils.getModuleName(module.id)} module: ` + e);
+  }
+
+  return {
+    msgNotify: '',
+    msgSendBack: output,
+    notifyType: 'log',
+  };
+}
+
+/**
+ * Show trade pair exchange config
+ * @param {String[]} params Trade pair
+ * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ */
+async function pair(params) {
+  let output = '';
+
+  try {
+    let pair = params[0]?.toUpperCase();
+    if (!pair) {
+      pair = config.pair;
+    }
+    if (pair.indexOf('/') === -1) {
+      return {
+        msgNotify: '',
+        msgSendBack: `Wrong pair '${pair}'. Try */pair ${config.pair}*.`,
+        notifyType: 'log',
+      };
+    }
+
+    if (!traderapi.features().getMarkets) {
+      return {
+        msgNotify: '',
+        msgSendBack: 'The exchange doesn\'t support receiving market info.',
+        notifyType: 'log',
+      };
+    }
+
+    const info = traderapi.marketInfo(pair);
+    if (!info) {
+      return {
+        msgNotify: '',
+        msgSendBack: `Unable to receive ${pair} market info. Try */pair ${config.pair}*.`,
+        notifyType: 'log',
+      };
+    }
+
+    output = `${config.exchangeName} reported these details on ${pair} market:\n\n`;
+    output += JSON.stringify(info, null, 3);
+  } catch (e) {
+    log.error(`Error in pair() of ${utils.getModuleName(module.id)} module: ` + e);
+  }
+
+  return {
+    msgNotify: '',
+    msgSendBack: output,
+    notifyType: 'log',
+  };
+}
+
+/**
+ * Get open orders details for accountNo
+ * @param {Number} accountNo 0 is for the first trade account, 1 is for the second
+ * @param {Object} tx Command Tx info
+ * @param {Object} pair Trading pair
+ * @returns Order details for an account
+ */
+async function getOrdersInfo(accountNo = 0, tx = {}, pair) {
+  let output = '';
+  const pairObj = orderUtils.parseMarket(pair);
+  let diffStringUnknownOrdersCount = '';
+
+  const api = traderapi;
+  const ordersByType = await orderStats.ordersByType(pairObj.pair, api);
+  const openOrders = await traderapi.getOpenOrders(pairObj.pair);
+
+  if (openOrders) {
+
+    let diff; let sign;
+    let diffStringExchangeOrdersCount = '';
+    if (previousOrders?.[accountNo]?.[tx.senderId]?.[pairObj?.pair]?.openOrdersCount) {
+      diff = openOrders.length - previousOrders[accountNo][tx.senderId][pairObj.pair].openOrdersCount;
+      sign = diff > 0 ? '+' : '−';
+      diff = Math.abs(diff);
+      if (diff) diffStringExchangeOrdersCount = ` (${sign}${diff})`;
+    }
+
+    if (openOrders.length > 0) {
+      output = `${config.exchangeName} open orders for ${pairObj.pair} pair: ${openOrders.length}${diffStringExchangeOrdersCount}.`;
+    } else {
+      output = `No open orders on ${config.exchangeName} for ${pairObj.pair}.`;
+    }
+
+    ordersByType.openOrdersCount = openOrders.length;
+    ordersByType.unkLength = openOrders.length - ordersByType['all'].allOrders.length;
+    if (previousOrders?.[accountNo]?.[tx.senderId]?.[pairObj?.pair]?.unkLength) {
+      diff = ordersByType.unkLength - previousOrders[accountNo][tx.senderId][pairObj.pair].unkLength;
+      sign = diff > 0 ? '+' : '−';
+      diff = Math.abs(diff);
+      if (diff) diffStringUnknownOrdersCount = ` (${sign}${diff})`;
+    }
+
+  } else {
+    output = `Unable to get ${config.exchangeName} orders for ${pairObj.pair}.`;
+  }
+
+  const getDiffString = function(purpose) {
+    let diff; let sign;
+    let diffString = '';
+    if (previousOrders?.[accountNo]?.[tx.senderId]?.[pairObj.pair]?.[purpose]?.allOrders.length >= 0) {
+      diff = ordersByType[purpose].allOrders.length -
+        previousOrders[accountNo][tx.senderId][pairObj.pair][purpose].allOrders.length;
+      sign = diff > 0 ? '+' : '−';
+      diff = Math.abs(diff);
+      if (diff) diffString = ` (${sign}${diff})`;
+    }
+    return diffString;
+  };
+
+  const getAmountsString = function(purpose) {
+    let amountsString = '';
+    if (ordersByType[purpose].buyOrdersQuote || ordersByType[purpose].sellOrdersAmount) {
+      amountsString = ` — ${ordersByType[purpose].buyOrdersQuote.toFixed(pairObj.coin2Decimals)} ${pairObj.coin2} buys & ${ordersByType[purpose].sellOrdersAmount.toFixed(pairObj.coin1Decimals)} ${pairObj.coin1} sells`;
+    }
+    return amountsString;
+  };
+
+  if (ordersByType?.['all']?.allOrders?.length > 0) {
+    output += '\n\nOrders in my database:';
+    Object.keys(orderCollector.orderPurposes).forEach((purpose) => {
+      output += `\n${orderCollector.orderPurposes[purpose]}: ${ordersByType[purpose].allOrders.length}${getDiffString(purpose)}${getAmountsString(purpose)},`;
+    });
+    output = utils.trimAny(output, ',') + '.';
+  } else {
+    output += '\n\n' + 'No open orders in my database.';
+  }
+
+  output += `\n\nOrders which are not in my database (Unknown orders): ${ordersByType.unkLength}${diffStringUnknownOrdersCount}.`;
+
+  previousOrders[accountNo][tx.senderId] = {};
+  previousOrders[accountNo][tx.senderId][pairObj.pair] = ordersByType;
+
+  return output;
+}
+
+/**
+ * Get details for open orders of specific type for accountNo
+ * @param {Number} accountNo 0 is for the first trade account, 1 is for the second
+ * @param {Object} tx Command Tx info
+ * @param {String} pair Trading pair
+ * @param {String} type Type of orders to list
+ * @param {Boolean} fullInfo Show full order info. Probably there will be line breaks and not convenient to read.
+ * @returns List of open orders of specific type
+ */
+async function getOrdersDetails(accountNo = 0, tx = {}, pair, type, fullInfo) {
+  let output = '';
+  const pairObj = orderUtils.parseMarket(pair);
+
+  const api = traderapi;
+  const ordersByType = (await orderStats.ordersByType(pairObj.pair, api, false))[type]?.allOrders;
+
+  if (ordersByType?.length) {
+    output = `${config.exchangeName} ${type}-orders for ${pairObj.pair} pair: ${ordersByType.length}.\n`;
+
+    ordersByType.sort((a, b) => b.price - a.price);
+
+    for (const order of ordersByType) {
+      output += '`';
+
+      if (type === 'ld') {
+        output += `${utils.padTo2Digits(order.ladderIndex)} `;
+      }
+
+      output += `${order.type} ${order.coin1Amount?.toFixed(pairObj.coin1Decimals)} ${order.coin1} @${order.price?.toFixed(pairObj.coin2Decimals)} ${order.coin2} for ${+order.coin2Amount?.toFixed(pairObj.coin2Decimals)} ${order.coin2}`;
+
+      if (fullInfo) {
+        output += ` ${utils.formatDate(new Date(order.date))}`;
+      }
+
+      if (type === 'ld') {
+        output += ` ${order.ladderState}`;
+
+        if (fullInfo) {
+          output += ` ${order.ladderNotPlacedReason ? ' (' + order.ladderNotPlacedReason + ')' : ''}`;
+        }
+      }
+
+      output += '`\n';
+    }
+  } else {
+    output = `No ${type}-orders opened on ${config.exchangeName} for ${pairObj.pair} pair.`;
+  }
+
+  return output;
+}
+
+/**
+ * Get open orders details
+ * @param {Object} params Optional trade pair and type of orders
+ * @param {Object} tx Command Tx info
+ * @returns Notification messages
+ */
+async function orders(params, tx = {}) {
+  let detailsType;
+  let pair = params[0];
+
+  if (Object.keys(orderCollector.orderPurposes).includes(pair?.toLowerCase())) {
+    detailsType = pair; // It's an order type
+    pair = config.pair;
+  }
+
+  pair = pair || config.pair;
+
+  if (pair.indexOf('/') === -1) {
+    return {
+      msgNotify: '',
+      msgSendBack: `Wrong pair '${pair}'. Try */orders ${config.pair}*.`,
+      notifyType: 'log',
+    };
+  }
+
+  detailsType = detailsType || params[1]?.toLowerCase();
+
+  let account0Orders;
+  let account1Orders;
+
+  if (detailsType) {
+    if (!Object.keys(orderCollector.orderPurposes).includes(detailsType)) {
+      return {
+        msgNotify: '',
+        msgSendBack: `Wrong order type '${detailsType}'. Try */orders ${config.pair} man*.`,
+        notifyType: 'log',
+      };
+    }
+
+    const fullInfo = params[params.length - 1]?.toLowerCase() === 'full' ? true : false;
+
+    account0Orders = await getOrdersDetails(0, tx, pair, detailsType, fullInfo);
+    account1Orders = undefined;
+  } else {
+    account0Orders = await getOrdersInfo(0, tx, pair);
+    account1Orders = undefined;
+  }
+
+  const output = account1Orders ?
+      account0Orders.replace(' pair:', ' pair (account 1):').replace(`on ${config.exchangeName} for`, `on ${config.exchangeName} (account 1) for`) +
+      '\n\n\n' + account1Orders.replace(' pair:', ' pair (account 2):').replace(`on ${config.exchangeName} for`, `on ${config.exchangeName} (account 2) for`) :
+      account0Orders;
+
+  return {
+    msgNotify: '',
+    msgSendBack: output,
+    notifyType: 'log',
+  };
+}
+
+/**
+ * Get info on coin withdrawal information and networks
+ * @param {Array} params Command parameters to parse
+ * @param {Object} tx Income ADM transaction
+ * @param {Boolean} isWebApi If isWebApi true, messages can be different
+ * @returns Notification messages
+ * @returns {Promise<void>}
+ */
+async function info(params, tx, isWebApi = false) {
+  try {
+    const coin = params[0]?.toUpperCase() || '';
+    if (coin?.length < 2) {
+      return {
+        msgNotify: '',
+        msgSendBack: 'Specify coin to get withdrawal information and networks. Example: */info USDT*.',
+        notifyType: 'log',
+      };
+    }
+
+    if (traderapi.features().getCurrencies && traderapi.currencies) {
+      await traderapi.getCurrencies(coin, true);
+
+      const currency = await traderapi.currencyInfo(coin);
+      if (!currency) {
+        return {
+          msgNotify: '',
+          msgSendBack: `It seems ${config.exchangeName} doesn't have _${coin}_ coin. Try */info USDT*.`,
+          notifyType: 'log',
+        };
+      }
+
+      let msgSendBack = `_${coin}_ on ${config.exchangeName} info:\n`;
+      msgSendBack += coinInfoString(currency);
+
+      return {
+        msgNotify: '',
+        msgSendBack,
+        notifyType: 'log',
+      };
+    }
+
+    return {
+      msgNotify: '',
+      msgSendBack: `It seems ${config.exchangeName} doesn't provide info about coins.`,
+      notifyType: 'log',
+    };
+  } catch (e) {
+    log.error(`Error in info() of ${utils.getModuleName(module.id)} module: ` + e);
+  }
 }
 
 /**
@@ -983,400 +1800,177 @@ async function calc(params, tx, isWebApi = false) {
 }
 
 /**
- * Show deposit address for a coin
- * @param {String[]} params Coin to deposit
- * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ * Creates a string about coin info
+ * @param {Object} coin
+ * @return {String}
  */
-async function deposit(params, tx = {}) {
-  let output = '';
+function coinInfoString(coin) {
+  const networksSupported = traderapi.features().supportCoinNetworks && typeof coin.networks === 'object' && Object.keys(coin.networks)?.length;
 
-  try {
-    if (!params[0] || params[0].indexOf('/') !== -1) {
-      output = 'Please specify coin to get a deposit address. F. e., */deposit ADM*.';
-      return {
-        msgNotify: '',
-        msgSendBack: `${output}`,
-        notifyType: 'log',
-      };
+  let message = '';
+  message += `Coin status is ${buildStatusString(coin)}${coin.comment ? ': ' + utils.trimAny(coin.comment, '. ') : ''}.`;
+  if (coin.type) {
+    message += ` Type: ${coin.type}.`;
+  }
+  if (coin.decimals) {
+    message += ` Decimals: ${coin.decimals}, precision: ${coin.precision?.toFixed(coin.decimals)}.`;
+  }
+  message += '\n';
+
+  if (!networksSupported) {
+    message += coinNetworkInfoString(coin);
+
+    if (traderapi.features().supportCoinNetworksRestricted) {
+      message += `\nNote: Receiving coin networks on ${config.exchangeName} is of private API. Try _/deposit ${coin.symbol}_ to list supported networks.`;
     }
+  } else {
+    message += `Supported networks for _${coin.name}_:`;
+    message += supportedNetworksString(coin);
+  }
 
-    if (!traderapi.features().getDepositAddress) {
-      return {
-        msgNotify: '',
-        msgSendBack: 'The exchange doesn\'t support receiving a deposit address.',
-        notifyType: 'log',
-      };
-    }
+  return message;
+}
 
-    const coin1 = params[0].toUpperCase();
-    const depositAddresses = await traderapi.getDepositAddress(coin1);
+/**
+ * Creates a string with coin's network info
+ * @param {Object} coinOrNetwork Coin or coin.networks[network]
+ * @param {Object} coin Coin to get parent info for a network
+ * @return String
+ */
+function coinNetworkInfoString(coinOrNetwork, coin) {
+  let message = '';
 
-    if (depositAddresses?.length) {
-      output = `The deposit addresses for ${coin1} on ${config.exchangeName}:\n${depositAddresses.map(({ network, address }) => `${network ? `_${network}_: ` : ''}${address}`).join('\n')}`;
+  const confirmations = coinOrNetwork.confirmations || coin?.confirmations;
+  if (confirmations) {
+    message += `Deposit confirmations: ${confirmations}. `;
+  }
+
+  const symbol = coinOrNetwork.symbol || coin?.symbol;
+  const withdrawalFee = coinOrNetwork.withdrawalFee ?? coin?.withdrawalFee;
+  const withdrawalFeeCurrency = coinOrNetwork.withdrawalFeeCurrency || coin?.withdrawalFeeCurrency || symbol;
+  const minWithdrawal = coinOrNetwork.minWithdrawal || coin?.minWithdrawal;
+  const maxWithdrawal = coinOrNetwork.maxWithdrawal || coin?.maxWithdrawal;
+  if (utils.isPositiveOrZeroNumber(withdrawalFee) || coinOrNetwork.minWithdrawal) {
+    if (utils.isPositiveOrZeroNumber(withdrawalFee)) {
+      message += `Withdrawal fee — ${withdrawalFee} ${withdrawalFeeCurrency}`;
     } else {
-      output = `Unable to get a deposit addresses for ${coin1}.`;
-
-      if (traderapi.features().createDepositAddressWithWebsiteOnly) {
-        output += ` Note: ${config.exchangeName} don't create new deposit addresses via API. Create it manually with a website.`;
-      }
+      message += 'Withdrawal fee — unknown';
     }
-  } catch (e) {
-    log.error(`Error in deposit() of ${utils.getModuleName(module.id)} module: ` + e);
+    if (minWithdrawal) {
+      message += `, minimum amount to withdraw ${minWithdrawal} ${symbol}`;
+    }
+    if (coinOrNetwork.maxWithdrawal) {
+      message += `, maximum ${maxWithdrawal} ${symbol}`;
+    }
   }
 
-  return {
-    msgNotify: '',
-    msgSendBack: output,
-    notifyType: 'log',
-  };
+  message = utils.trimAny(message, '. ');
+
+  const decimals = coinOrNetwork.decimals || coin?.decimals;
+  const precision = coinOrNetwork.precision || coin?.precision;
+
+  if (decimals) {
+    if (message) {
+      message += '. ';
+    }
+
+    message += `Decimals: ${decimals}, precision: ${precision?.toFixed(decimals)}`;
+  }
+
+  message = message ? message + '.' : '';
+
+  return message;
 }
 
 /**
- * Show trade pair stats
- * @param {String[]} params Trade pair
- * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ * Creates a coin/network status string
+ * @param {Object} coin
+ * @return String
  */
-async function stats(params) {
-  let output = '';
+function buildStatusString(coinOrNetwork) {
+  let statusString = '';
+  statusString = coinOrNetwork.status === 'ONLINE' ? `${coinOrNetwork.status.toLowerCase()}` : `**${coinOrNetwork.status}**`;
 
-  try {
-    let pair = params[0];
-    if (!pair) {
-      pair = config.pair;
+  if (coinOrNetwork.depositStatus || coinOrNetwork.withdrawalStatus) {
+    if (coinOrNetwork.status !== coinOrNetwork.depositStatus || coinOrNetwork.status !== coinOrNetwork.withdrawalStatus) {
+      statusString += ` (deposits: ${coinOrNetwork.depositStatus}, withdrawals: ${coinOrNetwork.depositStatus})`;
     }
-    if (pair.indexOf('/') === -1) {
-      output = `Wrong pair '${pair}'. Try */stats ${config.pair}*.`;
-      return {
-        msgNotify: '',
-        msgSendBack: `${output}`,
-        notifyType: 'log',
-      };
-    }
-    const pairObj = orderUtils.parseMarket(pair);
-    const coin1 = pairObj.coin1;
-    const coin2 = pairObj.coin2;
-    const coin1Decimals = pairObj.coin1Decimals;
-    const coin2Decimals = pairObj.coin2Decimals;
-
-    // First, get exchange 24h stats on pair: volume, low, high, spread
-    const exchangeRates = await traderapi.getRates(pairObj.pair);
-    if (exchangeRates) {
-      let volumeInCoin2String = '';
-      if (exchangeRates.volumeInCoin2) {
-        volumeInCoin2String = ` & ${utils.formatNumber(+exchangeRates.volumeInCoin2.toFixed(coin2Decimals), true)} ${coin2}`;
-      }
-      output += `${config.exchangeName} 24h stats for ${pairObj.pair} pair:`;
-      let delta = exchangeRates.high-exchangeRates.low;
-      let average = (exchangeRates.high+exchangeRates.low)/2;
-      let deltaPercent = delta/average * 100;
-      output += `\nVol: ${utils.formatNumber(+exchangeRates.volume.toFixed(coin1Decimals), true)} ${coin1}${volumeInCoin2String}.`;
-      if (exchangeRates.low && exchangeRates.high) {
-        output += `\nLow: ${exchangeRates.low.toFixed(coin2Decimals)}, high: ${exchangeRates.high.toFixed(coin2Decimals)}, delta: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
-      } else {
-        output += '\nNo low and high rates available.';
-      }
-      delta = exchangeRates.ask-exchangeRates.bid;
-      average = (exchangeRates.ask+exchangeRates.bid)/2;
-      deltaPercent = delta/average * 100;
-      output += `\nBid: ${exchangeRates.bid.toFixed(coin2Decimals)}, ask: ${exchangeRates.ask.toFixed(coin2Decimals)}, spread: _${(delta).toFixed(coin2Decimals)}_ ${coin2} (${(deltaPercent).toFixed(2)}%).`;
-      if (exchangeRates.last) {
-        output += `\nLast price: _${(exchangeRates.last).toFixed(coin2Decimals)}_ ${coin2}.`;
-      }
-    } else {
-      output += `Unable to get ${config.exchangeName} stats for ${pairObj.pair}. Try again later.`;
-    }
-
-  } catch (e) {
-    log.error(`Error in stats() of ${utils.getModuleName(module.id)} module: ` + e);
   }
 
-  return {
-    msgNotify: '',
-    msgSendBack: output,
-    notifyType: 'log',
-  };
+  return statusString;
 }
 
 /**
- * Show trade pair exchange config
- * @param {String[]} params Trade pair
- * @returns {Object} { msgNotify, msgSendBack, notifyType }
+ * Creates a string from supported networks on exchange
+ * @param {Object} coin
+ * @return String
  */
-async function pair(params) {
-  let output = '';
+function supportedNetworksString(coin) {
+  let message = '';
 
-  try {
-    let pair = params[0]?.toUpperCase();
-    if (!pair) {
-      pair = config.pair;
-    }
-    if (pair.indexOf('/') === -1) {
-      return {
-        msgNotify: '',
-        msgSendBack: `Wrong pair '${pair}'. Try */pair ${config.pair}*.`,
-        notifyType: 'log',
-      };
-    }
-
-    if (!traderapi.features().getMarkets) {
-      return {
-        msgNotify: '',
-        msgSendBack: 'The exchange doesn\'t support receiving market info.',
-        notifyType: 'log',
-      };
-    }
-
-    const info = traderapi.marketInfo(pair);
-    if (!info) {
-      return {
-        msgNotify: '',
-        msgSendBack: `Unable to receive ${pair} market info. Try */pair ${config.pair}*.`,
-        notifyType: 'log',
-      };
-    }
-
-    output = `${config.exchangeName} reported these details on ${pair} market:\n\n`;
-    output += JSON.stringify(info, null, 3);
-  } catch (e) {
-    log.error(`Error in pair() of ${utils.getModuleName(module.id)} module: ` + e);
+  for (const network of Object.keys(coin.networks)) {
+    const networkStatus = buildStatusString(coin.networks[network]);
+    message += `\n+ _${network}_ is ${networkStatus}. `;
+    message += coinNetworkInfoString(coin.networks[network], coin);
+    message = utils.trimAny(message, '. ') + '.';
   }
 
-  return {
-    msgNotify: '',
-    msgSendBack: output,
-    notifyType: 'log',
-  };
+  return message;
 }
 
 /**
- * Get open orders details for accountNo
- * @param {Number} accountNo 0 is for the first trade account, 1 is for the second
- * @param {Object} tx Command Tx info
- * @param {Object} params Includes optional trade pair
- * @returns Order details for an account
- */
-async function getOrdersInfo(accountNo = 0, tx = {}, pair) {
-  let output = '';
-  const pairObj = orderUtils.parseMarket(pair);
-  let diffStringUnknownOrdersCount = '';
-
-  let ordersByType; let openOrders;
-  if (accountNo === 0) {
-    ordersByType = await orderStats.ordersByType(pairObj.pair);
-    openOrders = await traderapi.getOpenOrders(pairObj.pair);
-  }
-
-  if (openOrders) {
-
-    let diff; let sign;
-    let diffStringExchangeOrdersCount = '';
-    if (previousOrders?.[accountNo]?.[tx.senderId]?.[pairObj?.pair]?.openOrdersCount) {
-      diff = openOrders.length - previousOrders[accountNo][tx.senderId][pairObj.pair].openOrdersCount;
-      sign = diff > 0 ? '+' : '−';
-      diff = Math.abs(diff);
-      if (diff) diffStringExchangeOrdersCount = ` (${sign}${diff})`;
-    }
-
-    if (openOrders.length > 0) {
-      output = `${config.exchangeName} open orders for ${pairObj.pair} pair: ${openOrders.length}${diffStringExchangeOrdersCount}.`;
-    } else {
-      output = `No open orders on ${config.exchangeName} for ${pairObj.pair}.`;
-    }
-
-    ordersByType.openOrdersCount = openOrders.length;
-    ordersByType.unkLength = openOrders.length - ordersByType['all'].allOrders.length;
-    if (previousOrders?.[accountNo]?.[tx.senderId]?.[pairObj?.pair]?.unkLength) {
-      diff = ordersByType.unkLength - previousOrders[accountNo][tx.senderId][pairObj.pair].unkLength;
-      sign = diff > 0 ? '+' : '−';
-      diff = Math.abs(diff);
-      if (diff) diffStringUnknownOrdersCount = ` (${sign}${diff})`;
-    }
-
-  } else {
-    output = `Unable to get ${config.exchangeName} orders for ${pairObj.pair}.`;
-  }
-
-  const getDiffString = function(purpose) {
-    let diff; let sign;
-    let diffString = '';
-    if (previousOrders?.[accountNo]?.[tx.senderId]?.[pairObj.pair]?.[purpose]?.allOrders.length >= 0) {
-      diff = ordersByType[purpose].allOrders.length -
-        previousOrders[accountNo][tx.senderId][pairObj.pair][purpose].allOrders.length;
-      sign = diff > 0 ? '+' : '−';
-      diff = Math.abs(diff);
-      if (diff) diffString = ` (${sign}${diff})`;
-    }
-    return diffString;
-  };
-
-  const getAmountsString = function(purpose) {
-    let amountsString = '';
-    if (ordersByType[purpose].buyOrdersQuote || ordersByType[purpose].sellOrdersAmount) {
-      amountsString = ` — ${ordersByType[purpose].buyOrdersQuote.toFixed(pairObj.coin2Decimals)} ${pairObj.coin2} buys & ${ordersByType[purpose].sellOrdersAmount.toFixed(pairObj.coin1Decimals)} ${pairObj.coin1} sells`;
-    }
-    return amountsString;
-  };
-
-  if (ordersByType?.['all']?.allOrders?.length > 0) {
-    output += '\n\nOrders in my database:';
-    Object.keys(orderCollector.orderPurposes).forEach((purpose) => {
-      output += `\n${orderCollector.orderPurposes[purpose]}: ${ordersByType[purpose].allOrders.length}${getDiffString(purpose)}${getAmountsString(purpose)},`;
-    });
-    output = utils.trimAny(output, ',') + '.';
-  } else {
-    output += '\n\n' + 'No open orders in my database.';
-  }
-
-  output += `\n\nOrders which are not in my database (Unknown orders): ${ordersByType.unkLength}${diffStringUnknownOrdersCount}.`;
-
-  previousOrders[accountNo][tx.senderId] = {};
-  previousOrders[accountNo][tx.senderId][pairObj.pair] = ordersByType;
-
-  return output;
-}
-
-/**
- * Get details for open orders of specific type for accountNo
- * @param {Number} accountNo 0 is for the first trade account, 1 is for the second
- * @param {Object} tx Command Tx info
- * @param {String} pair Trading pair
- * @param {String} type Type of orders to list
- * @param {Boolean} fullInfo Show full order info. Probably there will be line breaks and not convenient to read.
- * @returns List of open orders of specific type
- */
-async function getOrdersDetails(accountNo = 0, tx = {}, pair, type, fullInfo) {
-  let output = '';
-  const pairObj = orderUtils.parseMarket(pair);
-
-  const ordersByType = (await orderStats.ordersByType(pairObj.pair, traderapi, false))[type]?.allOrders;
-
-  if (ordersByType?.length) {
-    output = `${config.exchangeName} ${type}-orders for ${pairObj.pair} pair: ${ordersByType.length}.\n`;
-
-    ordersByType.sort((a, b) => b.price - a.price);
-
-    for (const order of ordersByType) {
-      output += '`';
-
-      if (type === 'ld') {
-        output += `${utils.padTo2Digits(order.ladderIndex)} `;
-      }
-
-      output += `${order.type} ${order.coin1Amount?.toFixed(pairObj.coin1Decimals)} ${order.coin1} @${order.price?.toFixed(pairObj.coin2Decimals)} ${order.coin2} for ${+order.coin2Amount?.toFixed(pairObj.coin2Decimals)} ${order.coin2}`;
-
-      if (fullInfo) {
-        output += ` ${utils.formatDate(new Date(order.date))}`;
-      }
-
-      if (type === 'ld') {
-        output += ` ${order.ladderState}`;
-
-        if (fullInfo) {
-          output += ` ${order.ladderNotPlacedReason ? ' (' + order.ladderNotPlacedReason + ')' : ''}`;
-        }
-      }
-
-      output += '`\n';
-    }
-  } else {
-    output = `No ${type}-orders opened on ${config.exchangeName} for ${pairObj.pair} pair.`;
-  }
-
-  return output;
-}
-
-/**
- * Get open orders details
- * @param {Object} params Optional trade pair and type of orders
- * @param {Object} tx Command Tx info
- * @returns Notification messages
- */
-async function orders(params, tx = {}) {
-  let detailsType;
-  let pair = params[0];
-
-  if (Object.keys(orderCollector.orderPurposes).includes(pair?.toLowerCase())) {
-    detailsType = pair; // It's an order type
-    pair = config.pair;
-  }
-
-  pair = pair || config.pair;
-
-  if (pair.indexOf('/') === -1) {
-    return {
-      msgNotify: '',
-      msgSendBack: `Wrong pair '${pair}'. Try */orders ${config.pair}*.`,
-      notifyType: 'log',
-    };
-  }
-
-  detailsType = detailsType || params[1]?.toLowerCase();
-
-  let account0Orders;
-
-  if (detailsType) {
-    if (!Object.keys(orderCollector.orderPurposes).includes(detailsType)) {
-      return {
-        msgNotify: '',
-        msgSendBack: `Wrong order type '${detailsType}'. Try */orders ${config.pair} man*.`,
-        notifyType: 'log',
-      };
-    }
-
-    const fullInfo = params[params.length - 1]?.toLowerCase() === 'full' ? true : false;
-
-    account0Orders = await getOrdersDetails(0, tx, pair, detailsType, fullInfo);
-  } else {
-    account0Orders = await getOrdersInfo(0, tx, pair);
-  }
-
-  const output = account0Orders;
-
-  return {
-    msgNotify: '',
-    msgSendBack: output,
-    notifyType: 'log',
-  };
-}
-
-/**
- * Creates a string for balances object, and object containing totalBTC and totalUSD
- * Adds totalBTC and totalUSD to balances object
- * @param {Array of Object} balances Balances
+ * Creates a string for balances object, looks like total-available-frozen for each crypto
+ * Adds totalBTC, totalUSD, totalNonCoin1USD, totalNonCoin1BTC to balances object
+ * @param {Array of Object} balances Balances object
  * @param {String} caption Like '${config.exchangeName} balances:'
- * @param {Array} params First parameter: account type, like main, trade, margin, or 'full'
- * @return {String, Object} String of balances info and balances object with totalBTC and totalUSD
+ * @param {Array} params First parameter: account type, e.g., main, trade, margin, or 'full'
+ * @return {String, Object} String of balances info and Balances object with totalBTC, totalUSD, totalNonCoin1USD, totalNonCoin1BTC
  */
 function balancesString(balances, caption, params) {
   let output = '';
+
   let totalBTC = 0; let totalUSD = 0;
   let totalNonCoin1BTC = 0; let totalNonCoin1USD = 0;
+
   const unknownCryptos = [];
 
   if (balances.length === 0) {
     output = 'All empty.';
   } else {
     output = caption;
+
+    // Skip total-available-frozen for totals
     balances = balances.filter((crypto) => !['totalBTC', 'totalUSD', 'totalNonCoin1BTC', 'totalNonCoin1USD'].includes(crypto.code));
+
+    // Create total-available-frozen string for each crypto in Balances object
     balances.forEach((crypto) => {
+      // In requested to show balances of special account type, e.g, for margin account
       const accountTypeString = params?.[0] ? `[${crypto.accountType}] ` : '';
-      output += `${accountTypeString}${utils.formatNumber(+(crypto.total).toFixed(8), true)} _${crypto.code}_`;
+
+      output += `${accountTypeString}${utils.formatNumber(crypto.total?.toFixed(8), true)} _${crypto.code}_`;
+
       if (crypto.total !== crypto.free) {
-        output += ` (${utils.formatNumber(+crypto.free.toFixed(8), true)} available`;
+        output += ` (${utils.formatNumber(crypto.free?.toFixed(8), true)} available`;
+
         if (crypto.freezed > 0) {
-          output += ` & ${utils.formatNumber(+crypto.freezed.toFixed(8), true)} frozen`;
+          output += ` & ${utils.formatNumber(crypto.freezed?.toFixed(8), true)} frozen`;
         }
+
         output += ')';
       }
+
       output += '\n';
 
       let value;
       const skipUnknownCryptos = ['BTXCRD'];
+
+      // Incrementally count Total holdings in USD
       if (utils.isPositiveOrZeroNumber(crypto.usd)) {
         totalUSD += crypto.usd;
         if (crypto.code !== config.coin1) totalNonCoin1USD += crypto.usd;
       } else {
         value = exchangerUtils.convertCryptos(crypto.code, 'USD', crypto.total).outAmount;
+
         if (utils.isPositiveOrZeroNumber(value)) {
           totalUSD += value;
           if (crypto.code !== config.coin1) totalNonCoin1USD += value;
@@ -1384,11 +1978,14 @@ function balancesString(balances, caption, params) {
           unknownCryptos.push(crypto.code);
         }
       }
+
+      // Incrementally count Total holdings in BTC
       if (utils.isPositiveOrZeroNumber(crypto.btc)) {
         totalBTC += crypto.btc;
         if (crypto.code !== config.coin1) totalNonCoin1BTC += crypto.btc;
       } else {
         value = exchangerUtils.convertCryptos(crypto.code, 'BTC', crypto.total).outAmount;
+
         if (utils.isPositiveOrZeroNumber(value)) {
           totalBTC += value;
           if (crypto.code !== config.coin1) totalNonCoin1BTC += value;
@@ -1396,25 +1993,30 @@ function balancesString(balances, caption, params) {
       }
     });
 
-    output += `Total holdings ~ ${utils.formatNumber(+totalUSD.toFixed(2), true)} _USD_ or ${utils.formatNumber(totalBTC.toFixed(8), true)} _BTC_`;
-    output += `\nTotal holdings (non-${config.coin1}) ~ ${utils.formatNumber(+totalNonCoin1USD.toFixed(2), true)} _USD_ or ${utils.formatNumber(totalNonCoin1BTC.toFixed(8), true)} _BTC_`;
+    output += `Total holdings ~ ${utils.formatNumber(totalUSD.toFixed(2), true)} _USD_ or ${utils.formatNumber(totalBTC.toFixed(8), true)} _BTC_`;
+    output += `\nTotal holdings (non-${config.coin1}) ~ ${utils.formatNumber(totalNonCoin1USD.toFixed(2), true)} _USD_ or ${utils.formatNumber(totalNonCoin1BTC.toFixed(8), true)} _BTC_`;
+
     if (unknownCryptos.length) {
       output += `. Note: I didn't count unknown cryptos ${unknownCryptos.join(', ')}.`;
     }
+
     output += '\n';
 
     balances.push({
       code: 'totalUSD',
       total: totalUSD,
     });
+
     balances.push({
       code: 'totalBTC',
       total: totalBTC,
     });
+
     balances.push({
       code: 'totalNonCoin1USD',
       total: totalNonCoin1USD,
     });
+
     balances.push({
       code: 'totalNonCoin1BTC',
       total: totalNonCoin1BTC,
@@ -1487,12 +2089,107 @@ async function balances(params, tx, user, isWebApi = false) {
     }
 
     const userId = isWebApi ? user.login : tx.senderId;
+
+    // Get balances info for each account separately
     const account0Balances = await getBalancesInfo(0, tx, isWebApi, params, userId);
     const account1Balances = undefined;
+
     output = account1Balances ? account0Balances + '\n\n' + account1Balances : account0Balances;
 
+    // Get balances info combined for two accounts (commonBalances)
+    if (account0Balances && account1Balances && !isWebApi && !params?.[0]) {
+      const commonBalances = utils.sumBalances(previousBalances[0][userId]?.balances, previousBalances[1][userId]?.balances);
+
+      output += balancesString(commonBalances, '\n\n**Both accounts**:\n').output;
+
+      const diffString = utils.differenceInBalancesString(
+          commonBalances,
+          previousBalances[2][userId],
+          orderUtils.parseMarket(config.pair),
+      );
+
+      if (diffString) {
+        output += diffString;
+      }
+
+      previousBalances[2][userId] = { timestamp: Date.now(), balances: commonBalances };
+    }
   } catch (e) {
     log.error(`Error in balances() of ${utils.getModuleName(module.id)} module: ` + e);
+  }
+
+  return {
+    msgNotify: '',
+    msgSendBack: output || 'Unable to get account balances. Check API keys, or it may be a temporary error. See logs for details.',
+    notifyType: 'log',
+  };
+}
+
+async function getAccountInfo(accountNo = 0, tx, isWebApi = false) {
+  const paramString = `accountNo: ${accountNo}, tx: ${tx}, isWebApi: ${isWebApi}`;
+
+  let output = '';
+
+  try {
+    const api = traderapi;
+
+    if (traderapi.features().getTradingFees) {
+      const feesBTC = config.pair === 'BTC/USDT' ? [] : await api.getFees('BTC/USDT');
+      const feesCoin2 = await api.getFees(config.coin1);
+
+      const fees = [...feesBTC, ...feesCoin2];
+
+      output += `${config.exchangeName} trading fees:\n`;
+
+      fees.forEach((pair) => {
+        output += `_${pair.pair}_: maker ${utils.formatNumber(pair.makerRate, true)}, taker ${utils.formatNumber(pair.takerRate, true)}`;
+        if (pair.takerRateStable && pair.takerRateCrypto) {
+          output += `, taker-stable ${utils.formatNumber(pair.takerRateStable, true)}`;
+          output += `, taker-crypto ${utils.formatNumber(pair.takerRateCrypto, true)}`;
+        }
+        output += '\n';
+      });
+      output += '\n';
+
+    } else {
+      output += `${config.exchangeName}'s API doesn't provide trading fees information.\n\n`;
+    }
+
+    if (traderapi.features().getAccountTradeVolume) {
+      const tradingVolume = await api.getVolume();
+
+      output += `${config.exchangeName} 30-days trading volume: `;
+
+      output += `${utils.formatNumber(tradingVolume?.volume30days, true)}`;
+      output += tradingVolume?.volumeUnit ? ` ${tradingVolume?.volumeUnit}` : '';
+      output += tradingVolume?.updated ? ` as on ${tradingVolume?.updated}.` : '.';
+
+    } else {
+      output += `${config.exchangeName}'s API doesn't provide trading volume information.`;
+    }
+  } catch (e) {
+    log.error(`Error in getAccountInfo(${paramString}) of ${utils.getModuleName(module.id)} module: ${e}`);
+    output = 'Error while receiving account information. Try again later.';
+  }
+
+  return output;
+}
+
+async function account({}, tx, isWebApi = false) {
+  let output = '';
+
+  try {
+
+    if (traderapi.features().getTradingFees || traderapi.features().getAccountTradeVolume) {
+      const account0Info = await getAccountInfo(0, tx, isWebApi);
+      const account1Info = undefined;
+      output = account1Info ? account0Info + '\n\n' + account1Info : account0Info;
+    } else {
+      output = `${config.exchangeName}'s API doesn't provide account information.`;
+    }
+
+  } catch (e) {
+    log.error(`Error in account() of ${utils.getModuleName(module.id)} module: ` + e);
   }
 
   return {
@@ -1515,7 +2212,6 @@ const aliases = {
 };
 
 const commands = {
-  params,
   help,
   rates,
   stats,
@@ -1523,16 +2219,20 @@ const commands = {
   orders,
   calc,
   balances,
+  account,
   version,
   start,
   stop,
   clear,
+  fill,
+  params,
   buy,
   sell,
   enable,
   disable,
   deposit,
   y,
+  info,
   saveConfig: utils.saveConfig,
 };
 
