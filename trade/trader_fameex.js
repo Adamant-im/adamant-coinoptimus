@@ -1,7 +1,7 @@
 const FameEXApi = require('./api/fameex_api');
 const utils = require('../helpers/utils');
 const networks = require('../helpers/networks');
-const config = require('../modules/config/reader');
+const config = require('./../modules/configReader');
 
 /**
  * API endpoints:
