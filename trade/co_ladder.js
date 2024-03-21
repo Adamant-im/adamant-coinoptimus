@@ -84,7 +84,7 @@ module.exports = {
       // Ladder re-initialization: purge all the orders
 
       if (tradeParams.mm_ladderReInit) {
-        log.log(`Ladder: User re-initialized the ladder. Purging ${ladderOrders.length} ordersâ¦`);
+        log.log(`Ladder: User re-initialized the ladder. Purging ${ladderOrders.length} orders…`);
 
         ladderOrders = await this.closeLadderOrders(ladderOrders, 'User re-initialized a ladder');
 
@@ -287,7 +287,7 @@ module.exports = {
 
         if (utils.isPositiveNumber(tradeParams.mm_ladderMidPrice)) {
           tradeParams.mm_ladderMidPriceType = 'Shifted';
-          const changeColor = tradeParams.mm_ladderMidPrice > mm_ladderMidPriceSaved ? 'ð©' : 'ð¥';
+          const changeColor = tradeParams.mm_ladderMidPrice > mm_ladderMidPriceSaved ? '🟩' : '🟥';
           filledInfoString += `${changeColor} Mid ladder price changed from ${mm_ladderMidPriceSaved.toFixed(coin2Decimals)} ${config.coin2} to ${tradeParams.mm_ladderMidPrice.toFixed(coin2Decimals)} ${config.coin2}.`;
         } else {
           tradeParams.mm_ladderMidPrice = mm_ladderMidPriceSaved;
