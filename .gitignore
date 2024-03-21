@@ -19,5 +19,5 @@ trade/tests/debug_trader.js
 client.py
 test_encode.py
 coverage/
-#trade/settings/
+trade/settings/
 !trade/settings/tradeParams_Default.js
