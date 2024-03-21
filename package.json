@@ -1,6 +1,6 @@
 {
   "name": "adamant-coinoptimus",
-  "version": "1.13.0",
+  "version": "2.0.0",
   "description": "ADAMANT CoinOptimus: free self-hosted cryptocurrency trade bot for non-professional traders",
   "main": "index.js",
   "scripts": {
