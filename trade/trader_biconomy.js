@@ -1,6 +1,6 @@
 const BiconomyAPI = require('./api/biconomy_api');
 const utils = require('../helpers/utils');
-const config = require('./../modules/config/reader');
+const config = require('../modules/config/reader');
 
 /**
  * API endpoints:

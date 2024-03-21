@@ -1,5 +1,5 @@
 const TapbitAPI = require('./api/tapbit_api');
-const config = require('./../modules/config/reader');
+const config = require('../modules/config/reader');
 const utils = require('../helpers/utils');
 const _networks = require('./../helpers/networks');
 
