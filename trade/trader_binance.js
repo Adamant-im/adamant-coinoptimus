@@ -1,7 +1,6 @@
 const BinanceApi = require('./api/binance_api');
 const utils = require('../helpers/utils');
 const config = require('../modules/config/reader');
-
 /**
  * API endpoints:
  * https://api.binance.com
@@ -19,7 +18,19 @@ const exchangeName = 'Binance';
 
 const DEFAULT_MAX_NUM_ORDERS = 200;
 
-module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = true) => {
+module.exports = (
+    apiKey,
+    secretKey,
+    pwd,
+    log,
+    publicOnly = false,
+    loadMarket = true,
+    useSocket = false,
+    useSocketPull = false,
+    accountNo = 0,
+    coin1 = config.coin1,
+    coin2 = config.coin2,
+) => {
   const binanceApiClient = BinanceApi();
 
   binanceApiClient.setConfig(apiServer, apiKey, secretKey, pwd, log, publicOnly);
@@ -149,6 +160,7 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         amountForMarketOrderNecessary: pair ? !this.marketInfo(pair)?.quoteOrderQtyMarketAllowed : false,
         orderNumberLimit: config.exchange_restrictions?.orderNumberLimit ||
             (pair ? this.marketInfo(pair)?.maxNumOrders : DEFAULT_MAX_NUM_ORDERS),
+        apiProcessingDelayMs: 10, // Override DEFAULT_API_PROCESSING_DELAY_MS const
       };
     },
 
@@ -439,25 +451,52 @@ module.exports = (apiKey, secretKey, pwd, log, publicOnly = false, loadMarket = 
         coin2AmountCalculated = coin1Amount * price;
       }
 
+      // Round coin1Amount, coin2Amount and price to a certain number of decimal places, and check if they are correct.
+      // Note: any value may be small, e.g., 0.000000033. In this case, its number representation will be 3.3e-8.
+      // That's why we store values as strings. If an exchange doesn't support string type for values, cast them to numbers.
+
       if (coin1Amount) {
-        coin1Amount = +(+coin1Amount).toFixed(marketInfo.coin1Decimals);
-      }
-      if (coin2Amount) {
-        coin2Amount = +(+coin2Amount).toFixed(marketInfo.coin2Decimals);
-      }
-      if (price) {
-        price = +(+price).toFixed(marketInfo.coin2Decimals);
+        coin1Amount = (+coin1Amount).toFixed(marketInfo.coin1Decimals);
+        if (!+coin1Amount) {
+          message = `Unable to place an order on ${exchangeName} exchange. After rounding to ${marketInfo.coin1Decimals} decimal places, the order amount is wrong: ${coin1Amount}.`;
+          log.warn(message);
+          return {
+            message,
+          };
+        }
       }
 
-      if (coin1Amount < marketInfo.coin1MinAmount) {
-        message = `Unable to place an order on ${exchangeName} exchange. Order amount ${coin1Amount} ${marketInfo.coin1} is less minimum ${marketInfo.coin1MinAmount} ${marketInfo.coin1} on ${pair} pair.`;
+      if (coin2Amount) {
+        coin2Amount = (+coin2Amount).toFixed(marketInfo.coin2Decimals);
+        if (!+coin2Amount) {
+          message = `Unable to place an order on ${exchangeName} exchange. After rounding to ${marketInfo.coin2Decimals} decimal places, the order volume is wrong: ${coin2Amount}.`;
+          log.warn(message);
+          return {
+            message,
+          };
+        }
+      }
+
+      if (price) {
+        price = (+price).toFixed(marketInfo.coin2Decimals);
+        if (!+price) {
+          message = `Unable to place an order on ${exchangeName} exchange. After rounding to ${marketInfo.coin2Decimals} decimal places, the order price is wrong: ${price}.`;
+          log.warn(message);
+          return {
+            message,
+          };
+        }
+      }
+
+      if (+coin1Amount < marketInfo.coin1MinAmount) {
+        message = `Unable to place an order on ${exchangeName} exchange. Order amount ${coin1Amount} ${marketInfo.coin1} is less minimum ${marketInfo.coin1MinAmount} ${marketInfo.coin1} on ${marketInfo.pairReadable} pair.`;
         log.warn(message);
         return {
           message,
         };
       }
 
-      if (coin2Amount && coin2Amount < marketInfo.coin2MinAmount) { // coin2Amount may be null
+      if (coin2Amount && +coin2Amount < marketInfo.coin2MinAmount) { // coin2Amount may be null or undefined
         message = `Unable to place an order on ${exchangeName} exchange. Order volume ${coin2Amount} ${marketInfo.coin2} is less minimum ${marketInfo.coin2MinAmount} ${marketInfo.coin2} on ${pair} pair.`;
         log.warn(message);
         return {

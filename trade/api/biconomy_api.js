@@ -66,6 +66,26 @@ const errorCodeDescriptions = {
   },
 };
 
+// No error code descriptions from Biconomy
+const httpErrorCodeDescriptions = {
+  4: { // 4XX
+    description: 'Wrong request content, behavior, format',
+    isTemporary: false,
+  },
+  429: {
+    description: 'Warning access frequency exceeding the limit',
+    isTemporary: true,
+  },
+  5: { // 5XX
+    description: 'Problems on the Biconomy service side',
+    isTemporary: true,
+  },
+  504: {
+    description: 'API server has submitted a request to the business core but failed to get a response',
+    isTemporary: false,
+  },
+};
+
 module.exports = function() {
   let WEB_BASE = 'https://market.biconomy.vip/api';
   let config = {
@@ -96,6 +116,8 @@ module.exports = function() {
       message: data?.message ?? biconomyError?.description ?? 'No error message',
     };
 
+    const httpCodeInfo = httpErrorCodeDescriptions[httpCode] ?? httpErrorCodeDescriptions[httpCode?.toString()[0]];
+
     const reqParameters = queryString || '{ No parameters }';
 
     try {
@@ -109,7 +131,7 @@ module.exports = function() {
           data.biconomyErrorInfo = biconomyErrorInfo;
         }
 
-        if (httpCode && !biconomyError?.isTemporary) {
+        if (httpCode && !httpCodeInfo?.isTemporary && !biconomyError?.isTemporary) {
           log.log(`Biconomy processed a request to ${url} with data ${reqParameters}, but with error: ${errorMessage}. Resolving…`);
 
           resolve(data);

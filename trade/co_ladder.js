@@ -10,7 +10,16 @@ const config = require('../modules/config/reader');
 const log = require('../helpers/log');
 const notify = require('../helpers/notify');
 const tradeParams = require('./settings/tradeParams_' + config.exchange);
-const traderapi = require('./trader_' + config.exchange)(config.apikey, config.apisecret, config.apipassword, log);
+const traderapi = require('./trader_' + config.exchange)(
+    config.apikey,
+    config.apisecret,
+    config.apipassword,
+    log,
+    undefined,
+    undefined,
+    config.exchange_socket,
+    config.exchange_socket_pull,
+);
 const db = require('../modules/DB');
 const orderUtils = require('./orderUtils');
 const orderCollector = require('./orderCollector');
@@ -83,7 +92,7 @@ module.exports = {
           log.log('Ladder: Re-initialized the ladder successfully. Ready to build the new one.');
 
           tradeParams.mm_ladderReInit = false;
-          utils.saveConfig();
+          utils.saveConfig(false, 'Ladder-ReInit');
         } else {
           log.warn(`Ladder: Unable to purge all of the previous ladder orders while re-initializing. Still ${ladderOrders.length} orders opened. Will try again.`);
         }
@@ -194,7 +203,7 @@ module.exports = {
               isFilledViaApiString += `${orderStatusString}.`;
 
               let filledMessage = `Considering ${utils.inclineNumber(index)} ld-order ${order._id} to ${type}`;
-              filledMessage += ` ${(order.coin1AmountInitial || order.coin1Amount).toFixed(coin1Decimals)} ${config.coin1} for ${order.coin2Amount.toFixed(coin2Decimals)} ${config.coin2}`;
+              filledMessage += ` ${order.coin1Amount.toFixed(coin1Decimals)} ${config.coin1} for ${order.coin2Amount.toFixed(coin2Decimals)} ${config.coin2}`;
               filledMessage += ` @${order.price.toFixed(coin2Decimals)} ${config.coin2} as filled: ${isFilledViaApiString} ${updateCrossTypeOrderStateString}`;
 
               notify(`${config.notifyName}: ${filledMessage}`, 'log');
@@ -285,7 +294,7 @@ module.exports = {
           log.warn(`Ladder: Unexpected new Mid ladder price: ${tradeParams.mm_ladderMidPrice}. Keeping ${mm_ladderMidPriceSaved} ${config.coin2} value.`);
         }
 
-        utils.saveConfig();
+        utils.saveConfig(false, 'Ladder-Shifted');
       }
 
       // Notify about changes
@@ -497,6 +506,10 @@ module.exports = {
           price,
           coin1Amount,
           coin2Amount,
+          coin1AmountFilled: undefined,
+          coin2AmountFilled: undefined,
+          coin1AmountLeft: coin1Amount,
+          coin2AmountLeft: coin2Amount,
           LimitOrMarket: 1, // 1 for limit price. 0 for Market price.
           isProcessed: false,
           isExecuted: false,
