@@ -45,8 +45,8 @@ module.exports = {
     const interval = setPause();
     if (
       interval &&
-      tradeParams.mm_isActive &&
-      tradeParams.mm_isLadderActive
+      tradeParams.co_isActive &&
+      tradeParams.co_strategy === 'ld'
     ) {
       if (isPreviousIterationFinished) {
         isPreviousIterationFinished = false;
