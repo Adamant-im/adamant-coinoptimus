@@ -52,7 +52,11 @@
     "Bitfinex",
     "Bittrex",
     "Coinstore",
-    "FameEX"
+    "FameEX",
+    "NonKYC",
+    "XeggeX",
+    "Tapbit",
+    "Biconomy"
   ],
 
   /** Exchange to work with. Case insensitive. **/
@@ -61,10 +65,20 @@
   /** Pair to trade in regular Base/Quote format **/
   "pair": "ADM/USDT",
 
+  /**
+    If an exchange doesn't publicly expose API for the pair, the bot can use private API.
+    Specific to exchange API implementation.
+  **/
+  "pair_hidden": false,
+
   /** Exchange's custom restrictions to override `traderapi.features()`, if you have a special account **/
   "exchange_restrictions": {
     /** Max number of open orders. Set 'false' to skip **/
-    "orderNumberLimit": false
+    "orderNumberLimit": false,
+    /** If the exchange doesn't provide min order amount value, the bot uses the default one. Set 'false' to use DEFAULT_MIN_ORDER_AMOUNT_USD **/
+    "minOrderAmountUSD": false,
+    /** Same for the upper bound of the min order amount **/
+    "minOrderAmountUpperBoundUSD": false
   },
 
   /**

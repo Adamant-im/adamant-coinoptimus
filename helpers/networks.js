@@ -132,6 +132,16 @@ const networks = {
     name: 'Stellar',
     sampleAddress: 'GB5A3OA657UWF3BN7WU4XFFWT333HFP2KFK2OFAXPEL3BBGQ7QLRNASG',
   },
+  CAP20: {
+    code: 'CAP20',
+    name: 'Chiliz Chain',
+    sampleAddress: '0x579391C9865545000d8922ACF71a660521cc6404',
+  },
+  BRC20: {
+    code: 'BRC20',
+    name: 'Ordinals',
+    sampleAddress: 'bc1pxaneaf3w4d27hl2y93fuft2xk6m4u3wc4rafevc6slgd7f5tq2dqyfgy06',
+  },
 };
 
 module.exports = networks;

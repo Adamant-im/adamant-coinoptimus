@@ -1,38 +1,59 @@
-const notify = require('./helpers/notify');
-const db = require('./modules/DB');
-const checker = require('./modules/checkerTransactions');
-const doClearDB = process.argv.includes('clear_db');
 const config = require('./modules/config/reader');
-const txParser = require('./modules/incomingTxsParser');
-const { botInterchange } = require('./modules/botInterchange');
-const { initApi } = require('./routes/init');
+const db = require('./modules/DB');
+const doClearDB = process.argv.includes('clear_db');
 
-// Socket connection
-const api = require('./modules/api');
-api.socket.initSocket({ socket: config.socket, wsType: config.ws_type, onNewMessage: txParser, admAddress: config.address });
+// It may take up to a second to create trading params file 'tradeParams_{exchange}.js' from the default one
+setTimeout(initServices, 1000);
+// It may take up to a 5 seconds to get exchange markets and Infoservice rates
+setTimeout(startModules, 5000);
 
-setTimeout(init, 5000);
-
-function init() {
+function initServices() {
   try {
+    // Socket connection
+    if (config.passPhrase) {
+      const api = require('./modules/api');
+      const txParser = require('./modules/incomingTxsParser');
+
+      api.socket.initSocket({ socket: config.socket, wsType: config.ws_type, onNewMessage: txParser, admAddress: config.address });
+    }
+
+    // Debug and health API init
+    const { initApi } = require('./routes/init');
     if (config.api?.port) {
       initApi();
     }
 
     // Comserver init
+    const { botInterchange } = require('./modules/botInterchange');
     if (config.com_server) {
       botInterchange.connect();
       botInterchange.initHandlers();
     }
+  } catch (e) {
+    console.error(`${config.notifyName} is not started. Error: ${e}`);
+    process.exit(1);
+  }
+}
+
+function startModules() {
+  try {
+    const notify = require('./helpers/notify');
 
     if (doClearDB) {
       console.log('Clearing database…');
+
       db.systemDb.db.drop();
       db.incomingTxsDb.db.drop();
       db.ordersDb.db.drop();
+      db.fillsDb.db.drop();
+
       notify(`*${config.notifyName}: database cleared*. Manually stop the Bot now.`, 'info');
     } else {
-      checker();
+      if (config.passPhrase) {
+        const checker = require('./modules/checkerTransactions');
+        checker();
+      }
+
       require('./trade/co_ladder').run();
       require('./trade/co_test').test();
 
@@ -40,7 +61,7 @@ function init() {
       notify(`${config.notifyName} *started*${addressInfo} (${config.projectBranch}, v${config.version}).`, 'info');
     }
   } catch (e) {
-    notify(`${config.notifyName} is not started. Error: ${e}`, 'error');
+    console.error(`${config.notifyName} is not started. Error: ${e}`);
     process.exit(1);
   }
 }
