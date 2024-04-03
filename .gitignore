@@ -3,8 +3,9 @@ logs/
 .vscode/
 tests.js
 config.test
-config.json
+config.test.json
 config.test.jsonc
+config.json
 config.test1.jsonc
 config.jsonc
 .DS_Store
@@ -17,3 +18,6 @@ balances.out
 trade/tests/debug_trader.js
 client.py
 test_encode.py
+coverage/
+trade/settings/
+!trade/settings/tradeParams_Default.js
