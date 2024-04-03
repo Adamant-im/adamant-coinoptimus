@@ -8,7 +8,7 @@ const collections = {};
 
 mongoClient.connect()
     .then((client) => {
-      const db = client.db('tradebotdb');
+      const db = client.db('coinoptimusdb');
 
       collections.db = db;
 
