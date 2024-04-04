@@ -30,11 +30,10 @@ try {
     config.passPhrase = undefined;
   }
 
-  if (!config.cli) {
-    if (process.env.CLI_MODE_ENABLED) {
-      exit('CLI is disabled in the config.');
-    }
+  const isCliEnabled = config.cli;
+  const isTgEnabled = config.manageTelegramBotToken;
 
+  if (!isCliEnabled && !isTgEnabled) {
     if (!config.passPhrase) {
       exit('Bot\'s config is wrong. ADAMANT passPhrase is invalid.');
     }
@@ -42,6 +41,10 @@ try {
     if (!config.node_ADM) {
       exit('Bot\'s config is wrong. ADM nodes are not set. Cannot start the Bot.');
     }
+  }
+
+  if (process.env.CLI_MODE_ENABLED && !isCliEnabled) {
+    exit('You are running the bot in CLI mode, but it\'s disabled in the config.');
   }
 
   let keyPair;
