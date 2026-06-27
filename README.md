@@ -1,3 +1,13 @@
+# Deprecated
+
+ADAMANT CoinOptimus is deprecated.
+
+Its functionality has been expanded and moved to the premium version of [ADAMANT Tradebot](https://github.com/Adamant-im/adamant-tradebot).
+
+ADAMANT CoinOptimus remains available as a free self-hosted cryptocurrency liauidity trade bot as is.
+
+---
+
 ADAMANT CoinOptimus is a free self-hosted cryptocurrency trade bot.
 
 The bot trades with a 3% price step with Ladder/Grid trading strategy:
